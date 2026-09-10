@@ -17,3 +17,7 @@ curl http://localhost:3000/api/v1/tte/tte-001
 ```bash
 pnpm dlx @bull-board/cli -r redis://:<REDIS_PASS>@<REDIS_HOST>:<REDIS_PORT> -p 3001 --read-only --no-open
 ```
+
+## Auth and API Key
+
+Authjs dan Unkeyjs
