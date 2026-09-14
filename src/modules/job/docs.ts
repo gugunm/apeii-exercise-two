@@ -5,7 +5,7 @@ export const jobOpenApi = {
         summary: 'List doc summary jobs',
         responses: {
           '200': {
-            description: 'Doc summary jobs',
+            description: 'Jobs ordered by createdAt desc',
             content: {
               'application/json': {
                 schema: {
@@ -35,7 +35,7 @@ export const jobOpenApi = {
         },
         responses: {
           '202': {
-            description: 'Job accepted and queued',
+            description: 'Job accepted and queued (status PENDING)',
             content: {
               'application/json': {
                 schema: {
@@ -48,7 +48,7 @@ export const jobOpenApi = {
               },
             },
           },
-          '400': { description: 'Invalid body' },
+          '400': { description: 'Invalid request body' },
         },
       },
     },
@@ -65,20 +65,33 @@ export const jobOpenApi = {
         ],
         responses: {
           '200': {
-            description: 'Doc summary job',
+            description: 'Job and its result (null until COMPLETED)',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   required: ['data'],
                   properties: {
-                    data: { $ref: '#/components/schemas/DocSummaryJob' },
+                    data: { $ref: '#/components/schemas/DocSummaryJobWithResult' },
                   },
                 },
               },
             },
           },
-          '404': { description: 'Job not found' },
+          '404': {
+            description: 'Job not found',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['error'],
+                  properties: {
+                    error: { type: 'string', example: 'Job not found' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -88,19 +101,38 @@ export const jobOpenApi = {
       type: 'object',
       required: ['filename', 'content'],
       properties: {
-        filename: { type: 'string', example: 'contract.txt' },
-        mimeType: { type: 'string', default: 'text/plain' },
-        content: { type: 'string', description: 'Raw document text' },
+        filename: { type: 'string', maxLength: 255, example: 'contract.txt' },
+        mimeType: {
+          type: 'string',
+          maxLength: 100,
+          default: 'text/plain',
+          example: 'text/plain',
+        },
+        content: {
+          type: 'string',
+          description: 'Raw document text to summarize',
+        },
       },
     },
     DocSummaryJob: {
       type: 'object',
-      required: ['id', 'filename', 'mimeType', 'fileSize', 'status'],
+      required: [
+        'id',
+        'filename',
+        'mimeType',
+        'fileSize',
+        'status',
+        'error',
+        'startedAt',
+        'finishedAt',
+        'createdAt',
+        'updatedAt',
+      ],
       properties: {
         id: { type: 'string', format: 'uuid' },
         filename: { type: 'string' },
         mimeType: { type: 'string' },
-        fileSize: { type: 'integer' },
+        fileSize: { type: 'integer', description: 'Bytes of content' },
         status: {
           type: 'string',
           enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
@@ -110,22 +142,35 @@ export const jobOpenApi = {
         finishedAt: { type: 'string', format: 'date-time', nullable: true },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
-        result: {
-          nullable: true,
-          $ref: '#/components/schemas/DocSummaryResult',
-        },
       },
     },
     DocSummaryResult: {
       type: 'object',
-      required: ['id', 'jobId', 'title', 'content', 'summary'],
+      required: ['id', 'jobId', 'title', 'content', 'summary', 'createdAt', 'updatedAt'],
       properties: {
         id: { type: 'string', format: 'uuid' },
         jobId: { type: 'string', format: 'uuid' },
         title: { type: 'string' },
-        content: { type: 'string' },
+        content: { type: 'string', description: 'Original document text' },
         summary: { type: 'string' },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
       },
+    },
+    DocSummaryJobWithResult: {
+      allOf: [
+        { $ref: '#/components/schemas/DocSummaryJob' },
+        {
+          type: 'object',
+          required: ['result'],
+          properties: {
+            result: {
+              nullable: true,
+              allOf: [{ $ref: '#/components/schemas/DocSummaryResult' }],
+            },
+          },
+        },
+      ],
     },
   },
 } as const;

@@ -1,9 +1,9 @@
 import { Scalar } from '@scalar/hono-api-reference';
 import { Hono } from 'hono';
 
-import { tteRoute } from './modules/tte/route.js';
+// import { tteRoute } from './modules/tte/route.js';
 import { openApiDocument } from './openapi.js';
-import { jobRoute } from './modules/job/route.js';
+import { jobRoute } from './modules/job/router.js';
 
 export const app = new Hono();
 
@@ -28,7 +28,7 @@ app.get(
 // (`hc<AppType>`) uses for end-to-end typesafety.
 const api = app
   .basePath('/api/v1')
-  .route('/tte', tteRoute)
+  // .route('/tte', tteRoute)
   .route('/jobs', jobRoute);
 
 export type AppType = typeof api;
