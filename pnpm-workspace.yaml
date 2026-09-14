@@ -3,3 +3,4 @@ onlyBuiltDependencies:
 allowBuilds:
   esbuild: true
   msgpackr-extract: true
+  workerd: true

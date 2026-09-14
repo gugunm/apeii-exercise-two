@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 
 import { tteRoute } from './modules/tte/route.js';
 import { openApiDocument } from './openapi.js';
+import { jobRoute } from './modules/job/route.js';
 
 export const app = new Hono();
 
@@ -23,6 +24,11 @@ app.get(
 );
 
 // ===== route under the base path /api/v1 =====
-const api = app.basePath('/api/v1');
+// Keep the .route() calls chained: `AppType` below is what the hono/client
+// (`hc<AppType>`) uses for end-to-end typesafety.
+const api = app
+  .basePath('/api/v1')
+  .route('/tte', tteRoute)
+  .route('/jobs', jobRoute);
 
-api.route('/tte', tteRoute);
+export type AppType = typeof api;

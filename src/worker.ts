@@ -1,11 +1,14 @@
-// src/worker.ts
+// src/worker.ts — worker entrypoint (`pnpm worker`).
 import { Worker } from 'bullmq';
 
-import { redisConnection } from './lib/queue.js';
+import { TTE_QUEUE_NAME, workerConnection } from './worker/config.js';
 import type { TteJob } from './modules/tte/schema.js';
 
-const worker = new Worker<TteJob>(
-  'tte',
+// doc-summary worker registers itself on import
+import './worker/worker.js';
+
+const tteWorker = new Worker<TteJob>(
+  TTE_QUEUE_NAME,
   async (job) => {
     console.log(`Processing TTE ${job.data.tteId}`);
     // Do the background work here.
@@ -13,11 +16,11 @@ const worker = new Worker<TteJob>(
     await new Promise((resolve) => setTimeout(resolve, 5_000));
   },
   {
-    connection: redisConnection,
+    connection: workerConnection,
     concurrency: 5,
   },
 );
 
-worker.on('failed', (job, error) => {
-  console.error(`Job ${job?.id} failed`, error);
+tteWorker.on('failed', (job, error) => {
+  console.error(`TTE job ${job?.id} failed`, error);
 });
