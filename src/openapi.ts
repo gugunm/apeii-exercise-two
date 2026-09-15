@@ -1,4 +1,4 @@
-import { jobOpenApi } from './modules/job/docs.js';
+import { jobOpenApi } from './modules/doc-summary/docs.js';
 // import { tteOpenApi } from './modules/tte/docs.js';
 
 export const openApiDocument = {

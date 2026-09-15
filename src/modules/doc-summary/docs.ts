@@ -1,11 +1,47 @@
 export const jobOpenApi = {
   paths: {
-    '/api/v1/jobs': {
+    '/api/v1/doc-summary': {
+      post: {
+        tags: ['Document Summary'],
+        summary: 'Queue a document for summarization',
+        operationId: 'createDocumentSummaryJob',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateDocSummaryJob' },
+              example: {
+                content:
+                  'Artificial intelligence helps automate repetitive work.',
+              },
+            },
+          },
+        },
+        responses: {
+          '202': {
+            description: 'Job accepted and queued with PENDING status',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['data'],
+                  properties: {
+                    data: { $ref: '#/components/schemas/DocSummaryJob' },
+                  },
+                },
+              },
+            },
+          },
+          '400': { description: 'Invalid request body' },
+        },
+      },
       get: {
-        summary: 'List doc summary jobs',
+        tags: ['Document Summary'],
+        summary: 'List document-summary jobs',
+        operationId: 'listDocumentSummaryJobs',
         responses: {
           '200': {
-            description: 'Jobs ordered by createdAt desc',
+            description: 'Jobs ordered by creation time, newest first',
             content: {
               'application/json': {
                 schema: {
@@ -23,56 +59,33 @@ export const jobOpenApi = {
           },
         },
       },
-      post: {
-        summary: 'Queue a document for summarization',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/CreateDocSummaryJob' },
-            },
-          },
-        },
-        responses: {
-          '202': {
-            description: 'Job accepted and queued (status PENDING)',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['data'],
-                  properties: {
-                    data: { $ref: '#/components/schemas/DocSummaryJob' },
-                  },
-                },
-              },
-            },
-          },
-          '400': { description: 'Invalid request body' },
-        },
-      },
     },
-    '/api/v1/jobs/{id}': {
+    '/api/v1/doc-summary/{id}': {
       get: {
-        summary: 'Get a doc summary job with its result',
+        tags: ['Document Summary'],
+        summary: 'Get a document-summary job and its result',
+        operationId: 'getDocumentSummaryJob',
         parameters: [
           {
             name: 'id',
             in: 'path',
             required: true,
-            schema: { type: 'string', format: 'uuid' },
+            description: 'Document-summary job ULID',
+            schema: { $ref: '#/components/schemas/Ulid' },
           },
         ],
         responses: {
           '200': {
-            description: 'Job and its result (null until COMPLETED)',
+            description: 'Job and its result, or null while not completed',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   required: ['data'],
                   properties: {
-                    data: { $ref: '#/components/schemas/DocSummaryJobWithResult' },
+                    data: {
+                      $ref: '#/components/schemas/DocSummaryJobWithResult',
+                    },
                   },
                 },
               },
@@ -97,19 +110,21 @@ export const jobOpenApi = {
     },
   },
   schemas: {
+    Ulid: {
+      type: 'string',
+      minLength: 26,
+      maxLength: 26,
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$',
+      example: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+    },
     CreateDocSummaryJob: {
       type: 'object',
-      required: ['filename', 'content'],
+      additionalProperties: false,
+      required: ['content'],
       properties: {
-        filename: { type: 'string', maxLength: 255, example: 'contract.txt' },
-        mimeType: {
-          type: 'string',
-          maxLength: 100,
-          default: 'text/plain',
-          example: 'text/plain',
-        },
         content: {
           type: 'string',
+          minLength: 1,
           description: 'Raw document text to summarize',
         },
       },
@@ -118,9 +133,7 @@ export const jobOpenApi = {
       type: 'object',
       required: [
         'id',
-        'filename',
-        'mimeType',
-        'fileSize',
+        'content',
         'status',
         'error',
         'startedAt',
@@ -129,10 +142,8 @@ export const jobOpenApi = {
         'updatedAt',
       ],
       properties: {
-        id: { type: 'string', format: 'uuid' },
-        filename: { type: 'string' },
-        mimeType: { type: 'string' },
-        fileSize: { type: 'integer', description: 'Bytes of content' },
+        id: { $ref: '#/components/schemas/Ulid' },
+        content: { type: 'string' },
         status: {
           type: 'string',
           enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
@@ -146,13 +157,19 @@ export const jobOpenApi = {
     },
     DocSummaryResult: {
       type: 'object',
-      required: ['id', 'jobId', 'title', 'content', 'summary', 'createdAt', 'updatedAt'],
+      required: [
+        'id',
+        'jobId',
+        'content_title',
+        'content_summary',
+        'createdAt',
+        'updatedAt',
+      ],
       properties: {
-        id: { type: 'string', format: 'uuid' },
-        jobId: { type: 'string', format: 'uuid' },
-        title: { type: 'string' },
-        content: { type: 'string', description: 'Original document text' },
-        summary: { type: 'string' },
+        id: { $ref: '#/components/schemas/Ulid' },
+        jobId: { $ref: '#/components/schemas/Ulid' },
+        content_title: { type: 'string', maxLength: 255 },
+        content_summary: { type: 'string' },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
       },

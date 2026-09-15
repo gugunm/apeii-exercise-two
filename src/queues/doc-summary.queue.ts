@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 
 import { connection } from '../utils/redis.js';
-import type { DocSummaryJobPayload } from '../modules/job/schema.js';
+import type { DocSummaryJobPayload } from '../modules/doc-summary/schema.js';
 
 export const DOC_SUMMARY_QUEUE_NAME = 'ai-doc-summarize-queue';
 

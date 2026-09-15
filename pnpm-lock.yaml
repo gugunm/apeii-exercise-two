@@ -44,6 +44,9 @@ importers:
       scalar:
         specifier: ^0.3.6
         version: 0.3.6
+      ulid:
+        specifier: ^3.0.2
+        version: 3.0.2
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -972,6 +975,10 @@ packages:
     engines: {node: '>=16.20.0'}
     hasBin: true
 
+  ulid@3.0.2:
+    resolution: {integrity: sha512-yu26mwteFYzBAot7KVMqFGCVpsF6g8wXfJzQUHvu1no3+rRRSFcSV2nKeYvNPLD2J4b08jYBDhHUjeH0ygIl9w==}
+    hasBin: true
+
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
@@ -1548,6 +1555,8 @@ snapshots:
       '@typescript/typescript-sunos-x64': 7.0.2
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
+
+  ulid@3.0.2: {}
 
   undici-types@8.9.0: {}
 

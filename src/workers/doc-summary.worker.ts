@@ -5,7 +5,7 @@ import {
   markJobFailed,
   markJobProcessing,
   summarizeDocument,
-} from '../modules/job/service.js';
+} from '../modules/doc-summary/service.js';
 import { DOC_SUMMARY_QUEUE_NAME } from '../queues/doc-summary.queue.js';
 
 type DocSummaryJobData = { jobId: string; content: string };
@@ -18,7 +18,7 @@ export const docSummaryWorker = new Worker<DocSummaryJobData>(
     await markJobProcessing(jobId);
     try {
       const { title, summary } = await summarizeDocument(content);
-      await completeJob(jobId, { title, summary, content });
+      await completeJob(jobId, { title, summary });
     } catch (error) {
       await markJobFailed(
         jobId,

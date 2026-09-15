@@ -1,14 +1,14 @@
 import {
   pgTable,
   pgEnum,
-  uuid,
   varchar,
   text,
-  bigint,
   timestamp,
   index,
+  char,
 } from 'drizzle-orm/pg-core';
 import { defineRelations } from 'drizzle-orm';
+import { ulid } from 'ulid';
 
 export const docSummaryJobStatusEnum = pgEnum('doc_summary_job_status', [
   'PENDING',
@@ -20,14 +20,11 @@ export const docSummaryJobStatusEnum = pgEnum('doc_summary_job_status', [
 export const docSummaryJobs = pgTable(
   'doc_summary_jobs',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: char('id', { length: 26 })
+      .$defaultFn(() => ulid())
+      .primaryKey(),
 
-    filename: varchar('filename', { length: 255 }).notNull(),
-    mimeType: varchar('mime_type', { length: 100 }).notNull(),
-
-    fileSize: bigint('file_size', {
-      mode: 'number',
-    }).notNull(),
+    content: text('content').notNull(),
 
     status: docSummaryJobStatusEnum('status').default('PENDING').notNull(),
 
@@ -63,19 +60,18 @@ export const docSummaryJobs = pgTable(
 );
 
 export const docSummaryResults = pgTable('doc_summary_results', {
-  id: uuid('id').defaultRandom().primaryKey(),
+  id: char('id', { length: 26 })
+    .$defaultFn(() => ulid())
+    .primaryKey(),
 
-  jobId: uuid('job_id')
+  jobId: char('job_id', { length: 26 })
     .notNull()
     .unique()
-    .references(() => docSummaryJobs.id, {
-      onDelete: 'cascade',
-    }),
+    .references(() => docSummaryJobs.id, { onDelete: 'cascade' }),
 
-  title: varchar('title', { length: 255 }).notNull(),
+  content_title: varchar('content_title', { length: 255 }).notNull(),
 
-  content: text('content').notNull(),
-  summary: text('summary').notNull(),
+  content_summary: text('content_summary').notNull(),
 
   createdAt: timestamp('created_at', {
     withTimezone: true,

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 
 // import { tteRoute } from './modules/tte/route.js';
 import { openApiDocument } from './openapi.js';
-import { jobRoute } from './modules/job/router.js';
+import { docSummaryRoute } from './modules/doc-summary/router.js';
 
 export const app = new Hono();
 
@@ -29,6 +29,6 @@ app.get(
 const api = app
   .basePath('/api/v1')
   // .route('/tte', tteRoute)
-  .route('/jobs', jobRoute);
+  .route('/doc-summary', docSummaryRoute);
 
 export type AppType = typeof api;

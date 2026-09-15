@@ -1,20 +1,13 @@
-// service
-//
-// Business logic + data access for the doc-summary job module.
-// Never import `hono` here: everything below is callable from the worker too.
-
 import z from 'zod';
 import { desc, eq } from 'drizzle-orm';
 import { generateCompletion } from '@anvia/core';
-
 import { db } from '../../utils/db.js';
 import { getModel } from '../../llm/models.js';
-// import { queue } from '../../workers/doc-summary.worker.js';
 import {
   docSummaryJobs,
   docSummaryResults,
 } from '../../db/schema/doc-summary.schema.js';
-import type { CreateJobInput } from './schema.js';
+import type { CreateDocSummaryJobInput } from './schema.js';
 import { docSummarizeQueue } from '../../queues/doc-summary.queue.js';
 
 const SummarySchema = z.object({
@@ -26,12 +19,6 @@ const SYSTEM_INSTRUCTIONS =
   'You are a document analyst. Reply with ONLY raw JSON (no markdown fences, no extra text) ' +
   'matching this shape: {"title": string, "summary": string}.';
 
-/**
- * The gateway currently rejects `response_format: json_schema` (400
- * "This response_format type is unavailable now"), so `outputSchema` can't
- * be passed to generateCompletion. Ask for JSON in the prompt instead and
- * validate it ourselves.
- */
 export async function summarizeDocument(content: string) {
   const res = await generateCompletion({
     model: getModel(),
@@ -77,13 +64,11 @@ export async function findJobWithResult(id: string) {
   return { ...job, result: result ?? null };
 }
 
-export async function createJob(input: CreateJobInput) {
+export async function createJob(input: CreateDocSummaryJobInput) {
   const [job] = await db
     .insert(docSummaryJobs)
     .values({
-      filename: input.filename,
-      mimeType: input.mimeType,
-      fileSize: Buffer.byteLength(input.content, 'utf8'),
+      content: input.content,
       status: 'PENDING',
     })
     .returning();
@@ -116,13 +101,12 @@ export async function markJobFailed(jobId: string, error: string) {
 
 export async function completeJob(
   jobId: string,
-  result: { title: string; summary: string; content: string },
+  result: { title: string; summary: string },
 ) {
   await db.insert(docSummaryResults).values({
     jobId,
-    title: result.title,
-    summary: result.summary,
-    content: result.content,
+    content_title: result.title,
+    content_summary: result.summary,
   });
 
   await db
