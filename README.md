@@ -1,4 +1,4 @@
-# TTE and E-Seal API
+# Doc Summarization
 
 Hono API for asynchronously summarizing documents with PostgreSQL, Redis,
 BullMQ, and an OpenAI-compatible model.
