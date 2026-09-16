@@ -1,4 +1,5 @@
 import { jobOpenApi } from './modules/doc-summary/docs.js';
+import { esealOpenApi } from './modules/e-seal/docs.js';
 // import { tteOpenApi } from './modules/tte/docs.js';
 
 export const openApiDocument = {
@@ -11,11 +12,13 @@ export const openApiDocument = {
   paths: {
     // ...tteOpenApi.paths,
     ...jobOpenApi.paths,
+    ...esealOpenApi.paths,
   },
   components: {
     schemas: {
       // ...tteOpenApi.schemas,
       ...jobOpenApi.schemas,
+      ...esealOpenApi.schemas,
     },
   },
 } as const;

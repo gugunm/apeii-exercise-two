@@ -84,27 +84,58 @@ pnpm dlx @bull-board/cli \
 
 # E-Seal
 
-## Pseudo Code
+Upload one or more PDFs; the worker seals them all in one BSrE call and
+stores the results in S3 under `{batchId}/verified/`.
 
-1. user post multi file ke /e-seal/create
+## Setup
 
-- opsi 1 : upload multi file ke S3 | opsi 2 : uploadnya ke _dalam 1 folder "raw" dedicated_
-- opsi 1 : masukin info setiap filenya ke table eseal_jobs (filePath,filename,mimeType,userId) menjadi rows sejumlah filenya | opsi 2 : masukin info foldernya ke table eseal_jobs
-- masukkin info detailnya ke _queue_ menjadi 1 queue saja
-- return status 202
-- status default queue adalah PENDING
+Fill the `S3_*`, `BSRE_*` and `ESEAL_*` values in `.env` (see
+`.env.example`), then seed the BSrE activation TOTP once:
 
-2. sekarang tahapan masuk ke workernya bullmq
+```bash
+psql "$DATABASE_URL" -c "INSERT INTO bsre_totp (kind, totp, expires_at) VALUES ('ACTIVATION', '<totp>', '<expires>') ON CONFLICT (kind) DO UPDATE SET totp = EXCLUDED.totp, expires_at = EXCLUDED.expires_at;"
+```
 
-- ambil data dari redis queue untuk diprocess, ubah status jadi PROCESSING
-- download multi file (dari 1 folder dedicated) dari S3 berdasarkan path pada data queue
-- convert setiap multi filenya ke base64 sebelum diseal pakai endpoint bsre
-- request post OTP seal ke endpoint {{baseURL}}/api/v2/seal/get/totp
-- request INVISIBLE seal ke endpoint {{baseURL}}/api/v2/seal/pdf -> "tampilan": "INVISIBLE"
-- request VISIBLE seal ke endpoint {{baseURL}}/api/v2/seal/pdf -> "tampilan": "VISIBLE" (kalibrasi lokasi penyimpanan barcodenya)
-- ambil base64 dari response bsre, lalu convert ke pdf dan simpan pdfnya di folder "verified" S3
-- ubah status ke COMPLETED atau FAILED
+The worker refreshes the activation and seal TOTPs afterwards.
 
-3. get by id
+## Create a batch
 
-- ini gimana caranya untuk update otomatis saat user ada di page itu.
+```bash
+curl -X POST http://localhost:3000/api/v1/e-seal \
+  -F 'files[]=@doc-1.pdf' \
+  -F 'files[]=@doc-2.pdf' \
+  -F 'userId=u-123' \
+  -F 'tampilan=INVISIBLE'
+```
+
+Visible seal:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/e-seal \
+  -F 'files[]=@doc-1.pdf' \
+  -F 'userId=u-123' \
+  -F 'tampilan=VISIBLE' \
+  -F 'page=1' -F 'originX=0' -F 'originY=0' \
+  -F 'width=150' -F 'height=50' \
+  -F 'location=Jakarta'
+```
+
+Returns `202 Accepted` with `{ id, status: "PENDING", totalFiles, statusUrl }`.
+
+## Poll status
+
+```bash
+curl http://localhost:3000/api/v1/e-seal/<batchId>
+```
+
+Poll every 2 s until `status` is `COMPLETED` or `FAILED`. `currentStep`
+moves through `QUEUED → DOWNLOADING → SEALING → UPLOADING → COMPLETED`.
+Each file's `downloadUrl` is a presigned S3 URL (valid `ESEAL_SIGNED_URL_TTL`
+seconds), `null` until the batch is `COMPLETED`. `logs[]` lists every
+transition and error.
+
+## Tests
+
+```bash
+pnpm test
+```
