@@ -81,3 +81,30 @@ pnpm dlx @bull-board/cli \
   --read-only \
   --no-open
 ```
+
+# E-Seal
+
+## Pseudo Code
+
+1. user post multi file ke /e-seal/create
+
+- opsi 1 : upload multi file ke S3 | opsi 2 : uploadnya ke _dalam 1 folder "raw" dedicated_
+- opsi 1 : masukin info setiap filenya ke table eseal_jobs (filePath,filename,mimeType,userId) menjadi rows sejumlah filenya | opsi 2 : masukin info foldernya ke table eseal_jobs
+- masukkin info detailnya ke _queue_ menjadi 1 queue saja
+- return status 202
+- status default queue adalah PENDING
+
+2. sekarang tahapan masuk ke workernya bullmq
+
+- ambil data dari redis queue untuk diprocess, ubah status jadi PROCESSING
+- download multi file (dari 1 folder dedicated) dari S3 berdasarkan path pada data queue
+- convert setiap multi filenya ke base64 sebelum diseal pakai endpoint bsre
+- request post OTP seal ke endpoint {{baseURL}}/api/v2/seal/get/totp
+- request INVISIBLE seal ke endpoint {{baseURL}}/api/v2/seal/pdf -> "tampilan": "INVISIBLE"
+- request VISIBLE seal ke endpoint {{baseURL}}/api/v2/seal/pdf -> "tampilan": "VISIBLE" (kalibrasi lokasi penyimpanan barcodenya)
+- ambil base64 dari response bsre, lalu convert ke pdf dan simpan pdfnya di folder "verified" S3
+- ubah status ke COMPLETED atau FAILED
+
+3. get by id
+
+- ini gimana caranya untuk update otomatis saat user ada di page itu.
