@@ -23,8 +23,6 @@ status.
 ### Not in scope
 
 - Authentication or a `users` table (`userId` is taken from the request body as-is)
-- Deleting raw files after sealing
-- Webhooks, SSE, or WebSocket status push
 - Batching files across requests
 - BSrE rate limiting
 - Per-file status or partial success (BSrE call is all-or-nothing)
@@ -55,18 +53,18 @@ eseal_log_level:    INFO | ERROR
 
 ### `eseal_batches`
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | char(26) | ULID, PK. Also the S3 root prefix. |
-| `user_id` | varchar(255) | From request body. No FK. |
-| `status` | eseal_batch_status | default `PENDING` |
-| `current_step` | eseal_batch_step | default `QUEUED` |
-| `seal_config` | jsonb, not null | See §4 for shape |
-| `error` | text | Last error message, kept across retries |
-| `started_at` | timestamptz | Set on first `PROCESSING` |
-| `finished_at` | timestamptz | Set on `COMPLETED` or `FAILED` |
-| `created_at` | timestamptz | default now |
-| `updated_at` | timestamptz | default now, `$onUpdate` |
+| Column         | Type               | Notes                                   |
+| -------------- | ------------------ | --------------------------------------- |
+| `id`           | char(26)           | ULID, PK. Also the S3 root prefix.      |
+| `user_id`      | varchar(255)       | From request body. No FK.               |
+| `status`       | eseal_batch_status | default `PENDING`                       |
+| `current_step` | eseal_batch_step   | default `QUEUED`                        |
+| `seal_config`  | jsonb, not null    | See §4 for shape                        |
+| `error`        | text               | Last error message, kept across retries |
+| `started_at`   | timestamptz        | Set on first `PROCESSING`               |
+| `finished_at`  | timestamptz        | Set on `COMPLETED` or `FAILED`          |
+| `created_at`   | timestamptz        | default now                             |
+| `updated_at`   | timestamptz        | default now, `$onUpdate`                |
 
 Index: `(status, created_at)`.
 
@@ -74,46 +72,51 @@ Index: `(status, created_at)`.
 
 One row per uploaded file. Carries metadata and S3 keys only; no status.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | char(26) | ULID, PK |
-| `batch_id` | char(26) | FK `eseal_batches.id`, `ON DELETE CASCADE` |
-| `position` | smallint | 0-based order in the request; used to map BSrE response |
-| `original_filename` | varchar(255) | As uploaded |
-| `file_size` | bigint | Bytes |
-| `raw_path` | text | `{batchId}/raw/{position}.pdf` |
-| `verified_path` | text, nullable | `{batchId}/verified/{position}.pdf` after sealing |
-| `created_at` | timestamptz | |
+| Column              | Type           | Notes                                                   |
+| ------------------- | -------------- | ------------------------------------------------------- |
+| `id`                | char(26)       | ULID, PK                                                |
+| `batch_id`          | char(26)       | FK `eseal_batches.id`, `ON DELETE CASCADE`              |
+| `position`          | smallint       | 0-based order in the request; used to map BSrE response |
+| `original_filename` | varchar(255)   | As uploaded                                             |
+| `file_size`         | bigint         | Bytes                                                   |
+| `raw_path`          | text           | `{batchId}/raw/{position}.pdf`                          |
+| `verified_path`     | text, nullable | `{batchId}/verified/{position}.pdf` after sealing       |
+| `created_at`        | timestamptz    |                                                         |
 
 Index: `(batch_id, position)`.
 
 ### `eseal_logs`
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | char(26) | ULID, PK |
-| `batch_id` | char(26) | FK `eseal_batches.id`, `ON DELETE CASCADE` |
-| `level` | eseal_log_level | |
-| `step` | eseal_batch_step | Step active when the log was written |
-| `message` | text | Human-readable, no secrets, no base64 |
-| `meta` | jsonb, nullable | Small structured extras, e.g. `{ "attempt": 2, "willRetry": true }` |
-| `created_at` | timestamptz | |
+| Column       | Type             | Notes                                                               |
+| ------------ | ---------------- | ------------------------------------------------------------------- |
+| `id`         | char(26)         | ULID, PK                                                            |
+| `batch_id`   | char(26)         | FK `eseal_batches.id`, `ON DELETE CASCADE`                          |
+| `level`      | eseal_log_level  |                                                                     |
+| `step`       | eseal_batch_step | Step active when the log was written                                |
+| `message`    | text             | Human-readable, no secrets, no base64                               |
+| `meta`       | jsonb, nullable  | Small structured extras, e.g. `{ "attempt": 2, "willRetry": true }` |
+| `created_at` | timestamptz      |                                                                     |
 
 Index: `(batch_id, created_at)`.
 
 ### `bsre_totp`
 
-Single-row table holding the currently valid BSrE TOTP.
+Two-row table holding the currently valid BSrE TOTPs, one per kind.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | smallint | PK, always `1` |
-| `totp` | varchar(10) | |
-| `expires_at` | timestamptz | From BSrE `expires` |
-| `updated_at` | timestamptz | |
+| Column       | Type            | Notes                        |
+| ------------ | --------------- | ---------------------------- |
+| `kind`       | bsre_totp_kind  | PK: `ACTIVATION` or `SEAL`   |
+| `totp`       | varchar(10)     |                              |
+| `expires_at` | timestamptz     | From BSrE `expires`          |
+| `updated_at` | timestamptz     |                              |
 
-The first row is seeded manually (via SQL or `pnpm db:studio`) with a TOTP
-obtained out-of-band from BSrE. The worker refreshes it afterwards (§6.3).
+Enum `bsre_totp_kind: ACTIVATION | SEAL`.
+
+BSrE uses a two-level chain: the **activation** TOTP (valid for days) is
+exchanged for a **seal** TOTP (valid ~24 h), which is what `seal/pdf`
+accepts. Only the `ACTIVATION` row is seeded manually (via SQL or
+`pnpm db:studio`) with a value obtained out-of-band from BSrE. The `SEAL`
+row is created and refreshed by the worker (§6.3).
 
 ### Relations
 
@@ -129,15 +132,15 @@ Module: `src/modules/e-seal/{schema,service,router}.ts`. Mounted at
 
 `multipart/form-data`:
 
-| Field | Required | Rules |
-| --- | --- | --- |
-| `files[]` | yes | 1..`ESEAL_MAX_FILES` files, each `application/pdf`, each ≤ `ESEAL_MAX_FILE_BYTES` |
-| `userId` | yes | non-empty string |
-| `tampilan` | yes | `INVISIBLE` or `VISIBLE` |
-| `page` | if VISIBLE | integer ≥ 1 |
-| `originX`, `originY`, `width`, `height` | if VISIBLE | number |
-| `location` | if VISIBLE | string |
-| `reason` | no | string, default `"null"` |
+| Field                                   | Required   | Rules                                                                             |
+| --------------------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| `files[]`                               | yes        | 1..`ESEAL_MAX_FILES` files, each `application/pdf`, each ≤ `ESEAL_MAX_FILE_BYTES` |
+| `userId`                                | yes        | non-empty string                                                                  |
+| `tampilan`                              | yes        | `INVISIBLE` or `VISIBLE`                                                          |
+| `page`                                  | if VISIBLE | integer ≥ 1                                                                       |
+| `originX`, `originY`, `width`, `height` | if VISIBLE | number                                                                            |
+| `location`                              | if VISIBLE | string                                                                            |
+| `reason`                                | no         | string, default `"null"`                                                          |
 
 Validation uses a zod `discriminatedUnion` on `tampilan`. For `INVISIBLE`,
 positional fields are ignored. Invalid input returns `400` before any S3 or
@@ -147,8 +150,16 @@ DB write.
 files, e.g.
 
 ```json
-{ "tampilan": "VISIBLE", "page": 1, "originX": 0, "originY": 0,
-  "width": 150, "height": 50, "location": "Jakarta", "reason": "null" }
+{
+  "tampilan": "VISIBLE",
+  "page": 1,
+  "originX": 0,
+  "originY": 0,
+  "width": 150,
+  "height": 50,
+  "location": "Jakarta",
+  "reason": "null"
+}
 ```
 
 Processing order:
@@ -164,8 +175,14 @@ Processing order:
 6. Return `202`:
 
 ```json
-{ "data": { "id": "<batchId>", "status": "PENDING", "totalFiles": 3,
-  "statusUrl": "/api/v1/e-seal/<batchId>" } }
+{
+  "data": {
+    "id": "<batchId>",
+    "status": "PENDING",
+    "totalFiles": 3,
+    "statusUrl": "/api/v1/e-seal/<batchId>"
+  }
+}
 ```
 
 ### `GET /api/v1/e-seal/:id`
@@ -175,15 +192,32 @@ Returns `404` `{ "error": "Batch not found" }` if missing. Otherwise:
 ```json
 {
   "data": {
-    "id": "...", "userId": "...", "status": "PROCESSING", "currentStep": "SEALING",
+    "id": "...",
+    "userId": "...",
+    "status": "PROCESSING",
+    "currentStep": "SEALING",
     "sealConfig": { "tampilan": "INVISIBLE", "reason": "null" },
     "error": null,
-    "startedAt": "...", "finishedAt": null, "createdAt": "...", "updatedAt": "...",
+    "startedAt": "...",
+    "finishedAt": null,
+    "createdAt": "...",
+    "updatedAt": "...",
     "files": [
-      { "id": "...", "filename": "Surat.pdf", "fileSize": 2483921, "downloadUrl": null }
+      {
+        "id": "...",
+        "filename": "Surat.pdf",
+        "fileSize": 2483921,
+        "downloadUrl": null
+      }
     ],
     "logs": [
-      { "level": "INFO", "step": "QUEUED", "message": "Batch created with 1 files", "meta": null, "createdAt": "..." }
+      {
+        "level": "INFO",
+        "step": "QUEUED",
+        "message": "Batch created with 1 files",
+        "meta": null,
+        "createdAt": "..."
+      }
     ]
   }
 }
@@ -226,7 +260,7 @@ File: `src/workers/e-seal.worker.ts`, imported from `src/worker.ts`.
 3. Download every `raw_path` from S3 into `Buffer[]`, convert each to base64.
    If `tampilan = VISIBLE`, also download `BSRE_SEAL_IMAGE_KEY` and base64 it.
    Log `INFO DOWNLOADING "Downloaded N files from S3"`.
-4. Update `current_step = SEALING`. Obtain TOTP (§6.3). Call BSrE
+4. Update `current_step = SEALING`. Obtain seal TOTP (§6.3). Call BSrE
    `sealPdf` (§7.2) with `seal_config`, `idSubscriber`, `totp`, `file[]`.
    Log `INFO SEALING "BSrE sealed N files"` with `meta: { time }` from the
    response.
@@ -254,14 +288,26 @@ A retried job restarts from step 1; raw files remain in S3 so this is safe.
 
 ### 6.3 TOTP
 
-`getTotp()` in the BSrE client:
+A TOTP row is *valid* when `expires_at > now() + 60s`.
 
-1. Read `bsre_totp` where `id = 1`. If no row, throw
-   `BSRE_TOTP_NOT_SEEDED`.
-2. If `expires_at > now() + 60s`, return `totp`.
-3. Otherwise call `refreshTotp(currentTotp)`, update the row with the new
-   `totp` and `expires`, log `INFO SEALING "TOTP refreshed"` on the batch,
-   return the new value.
+`getSealTotp()` in the BSrE client:
+
+1. Read `bsre_totp` where `kind = 'SEAL'`. If present and valid, return
+   `totp`.
+2. Otherwise obtain the activation TOTP via `getActivationTotp()` (below),
+   call `refreshSealTotp(activationTotp)` (§7.2), upsert the `SEAL` row with
+   the new `totp` and `expires`, log `INFO SEALING "Seal TOTP refreshed"` on
+   the batch, return the new value.
+
+`getActivationTotp()`:
+
+1. Read `bsre_totp` where `kind = 'ACTIVATION'`. If no row, throw
+   `BSRE_ACTIVATION_TOTP_NOT_SEEDED`.
+2. If valid, return `totp`.
+3. Otherwise call `refreshActivationTotp(currentActivationTotp)` (§7.2),
+   update the row with the returned `totp` and `expires`, log
+   `INFO SEALING "Activation TOTP refreshed"` on the batch, return the new
+   value.
 
 With worker concurrency 1 there is no concurrent refresh.
 
@@ -287,40 +333,89 @@ Uses Node's built-in `fetch`. Basic auth header from `BSRE_USERNAME` /
 `BSRE_PASSWORD`. Base URL `BSRE_BASE_URL`. Subscriber `BSRE_ID_SUBSCRIBER`.
 Any non-2xx response throws with the response body text.
 
-`refreshTotp(currentTotp: string)` → `POST /api/v2/seal/get/totp`
+`refreshActivationTotp(currentActivationTotp: string)` →
+`POST /api/v2/seal/get/activation`
 
 ```json
-{ "idSubscriber": "<BSRE_ID_SUBSCRIBER>", "totp": "<currentTotp>", "data": "1" }
+{ "idSubscriber": "<BSRE_ID_SUBSCRIBER>", "totp": "<currentActivationTotp>" }
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": null,
+  "data": {
+    "message": "TOTP Aktivasi masih berlaku",
+    "totp": "378786",
+    "expires": "2026-09-18T06:51:16.407+0000",
+    "result": true
+  }
+}
+```
+
+`success !== true` or `data.result !== true` throws. Returns
+`{ totp: data.totp, expires: data.expires }`. BSrE may return the same
+`totp` when the current one is still valid; the row is updated either way.
+
+`refreshSealTotp(activationTotp: string)` → `POST /api/v2/seal/get/totp`
+
+```json
+{ "idSubscriber": "<BSRE_ID_SUBSCRIBER>", "totp": "<activationTotp>", "data": "1" }
 ```
 
 Response: `{ "message": string, "totp": string, "expires": string, "result": boolean }`.
-`result !== true` throws.
+`result !== true` throws. Returns `{ totp, expires }`.
 
 `sealPdf({ totp, sealConfig, files, imageBase64? })` → `POST /api/v2/seal/pdf`
 
 INVISIBLE:
 
 ```json
-{ "idSubscriber": "...", "totp": "...",
-  "signatureProperties": [ { "tampilan": "INVISIBLE", "location": "null", "reason": "null", "contactInfo": "null" } ],
-  "file": [ "<base64>", "..." ] }
+{
+  "idSubscriber": "...",
+  "totp": "...",
+  "signatureProperties": [
+    {
+      "tampilan": "INVISIBLE",
+      "location": "null",
+      "reason": "null",
+      "contactInfo": "null"
+    }
+  ],
+  "file": ["<base64>", "..."]
+}
 ```
 
 VISIBLE:
 
 ```json
-{ "idSubscriber": "...", "totp": "...",
-  "signatureProperties": [ { "imageBase64": "<seal image>", "tampilan": "VISIBLE",
-    "page": 1, "originX": 0.0, "originY": 0.0, "width": 150.0, "height": 50.0,
-    "location": "Jakarta", "reason": "null" } ],
-  "file": [ "<base64>", "..." ] }
+{
+  "idSubscriber": "...",
+  "totp": "...",
+  "signatureProperties": [
+    {
+      "imageBase64": "<seal image>",
+      "tampilan": "VISIBLE",
+      "page": 1,
+      "originX": 0.0,
+      "originY": 0.0,
+      "width": 150.0,
+      "height": 50.0,
+      "location": "Jakarta",
+      "reason": "null"
+    }
+  ],
+  "file": ["<base64>", "..."]
+}
 ```
 
 Response: `{ "time": number, "file": string[] }` — sealed PDFs, base64, same
 order as the request.
 
-`getTotp()` as described in §6.3 lives here too, taking `db` as a
-dependency so it is testable.
+`getSealTotp()` and `getActivationTotp()` as described in §6.3 live here
+too, taking `db` as a dependency so they are testable.
 
 ## 8. Logging helper
 
@@ -382,8 +477,11 @@ Unit tests (external calls mocked):
 - `schema.test.ts`: `VISIBLE` without coordinates is rejected; `INVISIBLE`
   with coordinates passes and drops them; more than `ESEAL_MAX_FILES` or a
   non-PDF file is rejected.
-- `bsre.test.ts`: `getTotp()` returns the cached value when not expired;
-  calls `refreshTotp` and updates the row when expired; throws when unseeded.
+- `bsre.test.ts`: `getSealTotp()` returns the cached `SEAL` value when
+  valid; when the `SEAL` row is missing or expired it calls
+  `refreshSealTotp` with a valid activation TOTP and upserts the row; when
+  the `ACTIVATION` row is expired it calls `refreshActivationTotp` first;
+  throws when the `ACTIVATION` row is missing.
 - `worker.test.ts`: response `file.length` mismatch throws; non-final failure
   leaves `status = PROCESSING` and `current_step = QUEUED`; final failure sets
   `FAILED`; log rows are written in order `DOWNLOADING → SEALING → UPLOADING → COMPLETED`
