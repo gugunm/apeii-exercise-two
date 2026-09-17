@@ -120,6 +120,55 @@ export const esealOpenApi = {
         },
       },
     },
+    '/api/v1/e-seal/{id}/files': {
+      get: {
+        tags: ['E-Seal'],
+        summary: 'List files of a batch with view/download paths',
+        operationId: 'listEsealBatchFiles',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            description: 'Batch ULID',
+            schema: { $ref: '#/components/schemas/Ulid' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Files ordered by upload position',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['data'],
+                  properties: {
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/EsealFileLink' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Batch not found',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['error'],
+                  properties: {
+                    error: { type: 'string', example: 'Batch not found' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/v1/e-seal/{id}/files/{fileId}/{kind}': {
       get: {
         tags: ['E-Seal'],
@@ -267,6 +316,24 @@ export const esealOpenApi = {
         filename: { type: 'string' },
         fileSize: { type: 'integer' },
         downloadUrl: { type: 'string', nullable: true },
+      },
+    },
+    EsealFileLink: {
+      type: 'object',
+      required: ['id', 'filename', 'fileSize', 'rawUrl', 'verifiedUrl'],
+      properties: {
+        id: { $ref: '#/components/schemas/Ulid' },
+        filename: { type: 'string' },
+        fileSize: { type: 'integer' },
+        rawUrl: {
+          type: 'string',
+          example: '/api/v1/e-seal/01ARZ3NDEKTSV4RRFFQ69G5FAV/files/01ARZ3NDEKTSV4RRFFQ69G5FAW/raw',
+        },
+        verifiedUrl: {
+          type: 'string',
+          nullable: true,
+          description: 'null until the batch is COMPLETED',
+        },
       },
     },
     EsealLog: {

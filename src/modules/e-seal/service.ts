@@ -128,6 +128,32 @@ export async function findBatch(id: string) {
 
 export type FileKind = 'raw' | 'verified';
 
+/** Files of one batch with API paths to view/download them. Null when the batch does not exist. */
+export async function listBatchFiles(batchId: string) {
+  const [batch] = await db
+    .select({ id: esealBatches.id, status: esealBatches.status })
+    .from(esealBatches)
+    .where(eq(esealBatches.id, batchId));
+  if (!batch) return null;
+
+  const files = await db
+    .select()
+    .from(esealFiles)
+    .where(eq(esealFiles.batchId, batchId))
+    .orderBy(asc(esealFiles.position));
+
+  const fileUrl = (fileId: string, kind: FileKind) =>
+    `/api/v1/e-seal/${batchId}/files/${fileId}/${kind}`;
+
+  return files.map((f) => ({
+    id: f.id,
+    filename: f.originalFilename,
+    fileSize: f.fileSize,
+    rawUrl: fileUrl(f.id, 'raw'),
+    verifiedUrl: f.verifiedPath ? fileUrl(f.id, 'verified') : null,
+  }));
+}
+
 /** Returns null when the file does not belong to the batch or the verified copy is not ready yet. */
 export async function getFileForServing(
   batchId: string,

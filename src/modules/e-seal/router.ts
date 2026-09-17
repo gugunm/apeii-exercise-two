@@ -5,6 +5,7 @@ import {
   createBatch,
   findBatch,
   getFileForServing,
+  listBatchFiles,
   listBatches,
 } from './service.js';
 
@@ -18,6 +19,11 @@ export const esealRoute = new Hono()
     const batch = await findBatch(c.req.param('id'));
     if (!batch) return c.json({ error: 'Batch not found' }, 404);
     return c.json({ data: batch });
+  })
+  .get('/:id/files', async (c) => {
+    const files = await listBatchFiles(c.req.param('id'));
+    if (!files) return c.json({ error: 'Batch not found' }, 404);
+    return c.json({ data: files });
   })
   // Streams the PDF through the API so the S3 endpoint never has to be
   // reachable from the client. `?download=1` forces a save dialog.

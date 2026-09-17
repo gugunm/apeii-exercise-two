@@ -136,6 +136,13 @@ transition and error.
 
 ## View or download a file
 
+List a batch's files with ready-made paths:
+
+```bash
+curl http://localhost:3000/api/v1/e-seal/<batchId>/files
+# → [{ id, filename, fileSize, rawUrl, verifiedUrl }]  (verifiedUrl null until COMPLETED)
+```
+
 ```bash
 # view inline (raw upload / sealed result)
 curl http://localhost:3000/api/v1/e-seal/<batchId>/files/<fileId>/raw
