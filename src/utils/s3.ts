@@ -2,11 +2,20 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  type ServerSideEncryption,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const bucket = process.env.S3_BUCKET ?? '';
 const endpoint = process.env.S3_ENDPOINT;
+// Garage, MinIO and other S3-compatible stores need path-style URLs.
+// Defaults to true whenever a custom endpoint is set.
+const forcePathStyle = process.env.S3_FORCE_PATH_STYLE
+  ? process.env.S3_FORCE_PATH_STYLE === 'true'
+  : !!endpoint;
+// e.g. "AES256"; leave empty for stores without SSE support (Garage).
+const serverSideEncryption = (process.env.S3_SERVER_SIDE_ENCRYPTION ||
+  undefined) as ServerSideEncryption | undefined;
 
 export const s3 = new S3Client({
   region: process.env.S3_REGION ?? 'us-east-1',
@@ -14,8 +23,8 @@ export const s3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
   },
-  // MinIO and other S3-compatible stores need path-style URLs.
-  ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
+  forcePathStyle,
+  ...(endpoint ? { endpoint } : {}),
 });
 
 export async function putObject(
@@ -29,6 +38,9 @@ export async function putObject(
       Key: key,
       Body: body,
       ContentType: contentType,
+      ...(serverSideEncryption
+        ? { ServerSideEncryption: serverSideEncryption }
+        : {}),
     }),
   );
 }
