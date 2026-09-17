@@ -120,6 +120,69 @@ export const esealOpenApi = {
         },
       },
     },
+    '/api/v1/e-seal/{id}/files/{fileId}/{kind}': {
+      get: {
+        tags: ['E-Seal'],
+        summary: 'View or download a raw or sealed PDF',
+        operationId: 'getEsealFile',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            description: 'Batch ULID',
+            schema: { $ref: '#/components/schemas/Ulid' },
+          },
+          {
+            name: 'fileId',
+            in: 'path',
+            required: true,
+            description: 'File ULID (from batch detail `files[].id`)',
+            schema: { $ref: '#/components/schemas/Ulid' },
+          },
+          {
+            name: 'kind',
+            in: 'path',
+            required: true,
+            description: '`raw` = as uploaded, `verified` = sealed by BSrE',
+            schema: { type: 'string', enum: ['raw', 'verified'] },
+          },
+          {
+            name: 'download',
+            in: 'query',
+            required: false,
+            description:
+              'Any value forces Content-Disposition: attachment; omit to view inline',
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'PDF bytes',
+            content: {
+              'application/pdf': {
+                schema: { type: 'string', format: 'binary' },
+              },
+            },
+          },
+          '404': {
+            description:
+              'File not in this batch, or verified copy not ready yet',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['error'],
+                  properties: {
+                    error: { type: 'string', example: 'File not found' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   schemas: {
     CreateEsealBatch: {

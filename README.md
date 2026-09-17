@@ -134,6 +134,21 @@ Each file's `downloadUrl` is a presigned S3 URL (valid `ESEAL_SIGNED_URL_TTL`
 seconds), `null` until the batch is `COMPLETED`. `logs[]` lists every
 transition and error.
 
+## View or download a file
+
+```bash
+# view inline (raw upload / sealed result)
+curl http://localhost:3000/api/v1/e-seal/<batchId>/files/<fileId>/raw
+curl http://localhost:3000/api/v1/e-seal/<batchId>/files/<fileId>/verified
+
+# force download
+curl -OJ "http://localhost:3000/api/v1/e-seal/<batchId>/files/<fileId>/verified?download=1"
+```
+
+`fileId` comes from `files[].id` in the batch detail. `verified` returns
+`404` until the batch is `COMPLETED`. The PDF is streamed through the API,
+so the S3 endpoint does not need to be reachable from the client.
+
 ## Tests
 
 ```bash

@@ -1,7 +1,7 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { db } from '../../utils/db.js';
-import { presignGet, putObject } from '../../utils/s3.js';
+import { getObject, presignGet, putObject } from '../../utils/s3.js';
 import {
   esealBatches,
   esealFiles,
@@ -124,6 +124,31 @@ export async function findBatch(id: string) {
   );
 
   return { ...batch, files: filesOut, logs };
+}
+
+export type FileKind = 'raw' | 'verified';
+
+/** Returns null when the file does not belong to the batch or the verified copy is not ready yet. */
+export async function getFileForServing(
+  batchId: string,
+  fileId: string,
+  kind: FileKind,
+) {
+  const [file] = await db
+    .select({
+      batchId: esealFiles.batchId,
+      originalFilename: esealFiles.originalFilename,
+      rawPath: esealFiles.rawPath,
+      verifiedPath: esealFiles.verifiedPath,
+    })
+    .from(esealFiles)
+    .where(eq(esealFiles.id, fileId));
+  if (!file || file.batchId !== batchId) return null;
+
+  const key = kind === 'raw' ? file.rawPath : file.verifiedPath;
+  if (!key) return null;
+
+  return { buffer: await getObject(key), filename: file.originalFilename };
 }
 
 // ---------- worker-side transitions ----------
