@@ -27,7 +27,10 @@ export const esealRoute = new Hono()
     if (!file) return c.json({ error: 'File not found' }, 404);
 
     const disposition = c.req.query('download') ? 'attachment' : 'inline';
-    const filename = encodeURIComponent(file.filename);
+    const base = file.filename.replace(/\.pdf$/i, '');
+    const filename = encodeURIComponent(
+      kind === 'verified' ? `${base}_verified.pdf` : `${base}.pdf`,
+    );
     return c.body(new Uint8Array(file.buffer), 200, {
       'Content-Type': 'application/pdf',
       'Content-Length': String(file.buffer.length),
