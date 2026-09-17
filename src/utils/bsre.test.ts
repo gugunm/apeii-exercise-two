@@ -45,32 +45,25 @@ test('parseBsreDate handles +0000 offset', () => {
   );
 });
 
-test('returns cached SEAL totp when valid', async () => {
-  const { deps, calls } = makeDeps({
-    ACTIVATION: { totp: 'ACT', expiresAt: inOneHour },
-    SEAL: { totp: 'SEAL', expiresAt: inOneHour },
-  });
-  assert.equal(await getSealTotp(deps), 'SEAL');
-  assert.deepEqual(calls, []);
-});
-
-test('SEAL expiring within 60s counts as expired and is refreshed', async () => {
+test('always requests a fresh seal TOTP and never persists it', async () => {
   const { deps, store, calls } = makeDeps({
     ACTIVATION: { totp: 'ACT', expiresAt: inOneHour },
-    SEAL: { totp: 'SEAL', expiresAt: inTenSeconds },
   });
   assert.equal(await getSealTotp(deps), 'SEAL-NEW');
-  assert.deepEqual(calls, ['seal:ACT', 'refreshed:SEAL']);
-  assert.equal(store.get('SEAL')?.totp, 'SEAL-NEW');
-  assert.equal(
-    store.get('SEAL')?.expiresAt.toISOString(),
-    '2026-09-17T10:00:00.000Z',
-  );
+  assert.equal(await getSealTotp(deps), 'SEAL-NEW');
+  assert.deepEqual(calls, [
+    'seal:ACT',
+    'refreshed:SEAL',
+    'seal:ACT',
+    'refreshed:SEAL',
+  ]);
+  assert.equal(store.has('SEAL'), false);
 });
 
-test('missing SEAL row is created from a valid ACTIVATION', async () => {
+test('a stale SEAL row in the store is ignored', async () => {
   const { deps, calls } = makeDeps({
     ACTIVATION: { totp: 'ACT', expiresAt: inOneHour },
+    SEAL: { totp: 'OLD', expiresAt: inOneHour },
   });
   assert.equal(await getSealTotp(deps), 'SEAL-NEW');
   assert.deepEqual(calls, ['seal:ACT', 'refreshed:SEAL']);

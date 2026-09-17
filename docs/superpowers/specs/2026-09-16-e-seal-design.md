@@ -101,22 +101,24 @@ Index: `(batch_id, created_at)`.
 
 ### `bsre_totp`
 
-Two-row table holding the currently valid BSrE TOTPs, one per kind.
+Holds the current BSrE activation TOTP.
 
 | Column       | Type            | Notes                        |
 | ------------ | --------------- | ---------------------------- |
-| `kind`       | bsre_totp_kind  | PK: `ACTIVATION` or `SEAL`   |
+| `kind`       | bsre_totp_kind  | PK; only `ACTIVATION` is stored |
 | `totp`       | varchar(10)     |                              |
 | `expires_at` | timestamptz     | From BSrE `expires`          |
 | `updated_at` | timestamptz     |                              |
 
-Enum `bsre_totp_kind: ACTIVATION | SEAL`.
+Enum `bsre_totp_kind: ACTIVATION | SEAL` (`SEAL` is unused — seal TOTPs
+are single-use and never persisted).
 
 BSrE uses a two-level chain: the **activation** TOTP (valid for days) is
-exchanged for a **seal** TOTP (valid ~24 h), which is what `seal/pdf`
-accepts. Only the `ACTIVATION` row is seeded manually (via SQL or
-`pnpm db:studio`) with a value obtained out-of-band from BSrE. The `SEAL`
-row is created and refreshed by the worker (§6.3).
+exchanged for a **seal** TOTP, which is what `seal/pdf` accepts. A seal
+TOTP is valid for exactly one seal call, so the worker requests a fresh one
+per batch (§6.3). Only the `ACTIVATION` row is seeded manually (via SQL or
+`pnpm db:studio`) with a value obtained out-of-band from BSrE; the worker
+refreshes it when it expires.
 
 ### Relations
 
@@ -290,14 +292,12 @@ A retried job restarts from step 1; raw files remain in S3 so this is safe.
 
 A TOTP row is *valid* when `expires_at > now() + 60s`.
 
-`getSealTotp()` in the BSrE client:
+`getSealTotp()` in the BSrE client (called once per batch; the seal TOTP
+is single-use and never stored):
 
-1. Read `bsre_totp` where `kind = 'SEAL'`. If present and valid, return
-   `totp`.
-2. Otherwise obtain the activation TOTP via `getActivationTotp()` (below),
-   call `refreshSealTotp(activationTotp)` (§7.2), upsert the `SEAL` row with
-   the new `totp` and `expires`, log `INFO SEALING "Seal TOTP refreshed"` on
-   the batch, return the new value.
+1. Obtain the activation TOTP via `getActivationTotp()` (below).
+2. Call `refreshSealTotp(activationTotp)` (§7.2), log
+   `INFO SEALING "Seal TOTP refreshed"` on the batch, return the value.
 
 `getActivationTotp()`:
 
@@ -477,10 +477,9 @@ Unit tests (external calls mocked):
 - `schema.test.ts`: `VISIBLE` without coordinates is rejected; `INVISIBLE`
   with coordinates passes and drops them; more than `ESEAL_MAX_FILES` or a
   non-PDF file is rejected.
-- `bsre.test.ts`: `getSealTotp()` returns the cached `SEAL` value when
-  valid; when the `SEAL` row is missing or expired it calls
-  `refreshSealTotp` with a valid activation TOTP and upserts the row; when
-  the `ACTIVATION` row is expired it calls `refreshActivationTotp` first;
+- `bsre.test.ts`: `getSealTotp()` always calls `refreshSealTotp` with a
+  valid activation TOTP and never persists a `SEAL` row; when the
+  `ACTIVATION` row is expired it calls `refreshActivationTotp` first;
   throws when the `ACTIVATION` row is missing.
 - `worker.test.ts`: response `file.length` mismatch throws; non-final failure
   leaves `status = PROCESSING` and `current_step = QUEUED`; final failure sets

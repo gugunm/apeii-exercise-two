@@ -169,17 +169,10 @@ export async function getActivationTotp(deps: TotpDeps): Promise<string> {
   return fresh.totp;
 }
 
+/** Seal TOTP is single-use: request a fresh one for every seal call, never persist it. */
 export async function getSealTotp(deps: TotpDeps): Promise<string> {
-  const now = deps.now?.() ?? new Date();
-  const row = await deps.get('SEAL');
-  if (row && isValid(row, now)) return row.totp;
-
   const activation = await getActivationTotp(deps);
   const fresh = await deps.refreshSealTotp(activation);
-  await deps.set('SEAL', {
-    totp: fresh.totp,
-    expiresAt: parseBsreDate(fresh.expires),
-  });
   await deps.onRefresh?.('SEAL');
   return fresh.totp;
 }
