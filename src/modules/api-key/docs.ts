@@ -196,6 +196,60 @@ export const apiKeyOpenApi = {
         },
       },
     },
+    '/admin/keys/{id}/rotate': {
+      post: {
+        tags: ['API Keys'],
+        summary: 'Rotate an API key',
+        description:
+          'Mints a new secret on the same key (id, name, scopes, expiry preserved) and invalidates the old secret immediately. The plaintext is returned **once**. Only active keys can be rotated.',
+        operationId: 'rotateApiKey',
+        security: adminSecurity,
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            description: 'API key ULID',
+            schema: { $ref: '#/components/schemas/Ulid' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Rotated key with the new one-time secret',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['data'],
+                  properties: {
+                    data: { $ref: '#/components/schemas/ApiKeyWithSecret' },
+                  },
+                },
+              },
+            },
+          },
+          '401': unauthorized,
+          '404': notFound,
+          '409': {
+            description: 'Key is revoked or expired; rotation requires an active key',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['error'],
+                  properties: {
+                    error: {
+                      type: 'string',
+                      example: 'Key is not active; rotation requires an active key',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   schemas: {
     ApiKeyScopes: {
