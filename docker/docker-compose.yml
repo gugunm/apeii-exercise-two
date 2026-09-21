@@ -41,6 +41,10 @@ services:
     restart: unless-stopped
 
   worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
     image: tte-eseal-app:latest
     command: ["node", "dist/worker.js"]
     env_file: ../.env
