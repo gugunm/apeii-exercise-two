@@ -292,17 +292,28 @@ PostgreSQL and S3 are **external** — point the app at them via `.env`.
 
 ## Run
 
+`docker-compose.yml` lives at the repo root (the Dockerfile stays in
+`docker/`). Run from the repo root:
+
 ```bash
-docker compose -f docker/docker-compose.yml up -d --build
+docker compose up -d --build
 ```
 
 This starts `redis`, runs `migrate` (Drizzle migrations) to completion, then
 starts `api` (published on `http://localhost:3000`) and `worker`.
 
 - Health: `curl localhost:3000/health`.
-- Logs: `docker compose -f docker/docker-compose.yml logs -f api worker`.
-- Stop: `docker compose -f docker/docker-compose.yml down` (`-v` also removes
-  the Redis volume).
+- Logs: `docker compose logs -f api worker`.
+- Stop: `docker compose down` (`-v` also removes the Redis volume).
+
+### Coolify
+
+Set the **Docker Compose Location** to `/docker-compose.yml` (repo root — the
+Coolify default). Coolify runs compose with `--project-directory <repo-root>`,
+which is why `build.context` is `.` (repo root) with `dockerfile:
+docker/Dockerfile`. Set env vars (`DATABASE_URL`, `S3_*`, `BSRE_*`,
+`ADMIN_API_KEY`, …) in Coolify; `REDIS_URL` is fixed to the internal `redis`
+service by the compose file.
 
 ## Services
 

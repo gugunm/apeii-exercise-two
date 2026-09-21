@@ -15,20 +15,24 @@ services:
 
   migrate:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
       target: migrate
     image: tte-eseal-migrate:latest
-    env_file: ../.env
+    env_file:
+      - path: .env
+        required: false
     restart: "no"
 
   api:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
       target: runtime
     image: tte-eseal-app:latest
-    env_file: ../.env
+    env_file:
+      - path: .env
+        required: false
     environment:
       REDIS_URL: redis://redis:6379
     ports:
@@ -42,12 +46,14 @@ services:
 
   worker:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
       target: runtime
     image: tte-eseal-app:latest
     command: ["node", "dist/worker.js"]
-    env_file: ../.env
+    env_file:
+      - path: .env
+        required: false
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
