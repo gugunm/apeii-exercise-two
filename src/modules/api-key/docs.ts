@@ -304,7 +304,7 @@ export const apiKeyOpenApi = {
         prefix: {
           type: 'string',
           description: 'Display fragment; not enough to authenticate',
-          example: 'tte_xE9TaV',
+          example: 'seal_xE9TaV',
         },
         scopes: { $ref: '#/components/schemas/ApiKeyScopes' },
         status: {
@@ -328,7 +328,7 @@ export const apiKeyOpenApi = {
             secret: {
               type: 'string',
               description: 'Plaintext key, shown only once',
-              example: 'tte_xE9TaVKg6gLqN7bwCk2eB-8FAFa2p6fH6SgzE-kal4I',
+              example: 'seal_xE9TaVKg6gLqN7bwCk2eB-8FAFa2p6fH6SgzE-kal4I',
             },
           },
         },
