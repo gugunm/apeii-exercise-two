@@ -1,7 +1,6 @@
-import { jobOpenApi } from './modules/doc-summary/docs.js';
+// import { jobOpenApi } from './modules/doc-summary/docs.js';
 import { esealOpenApi } from './modules/e-seal/docs.js';
 import { apiKeyOpenApi } from './modules/api-key/docs.js';
-// import { tteOpenApi } from './modules/tte/docs.js';
 
 export const openApiDocument = {
   openapi: '3.0.3',
@@ -11,18 +10,17 @@ export const openApiDocument = {
   },
   servers: [{ url: 'http://localhost:3000' }],
   paths: {
-    // ...tteOpenApi.paths,
-    ...jobOpenApi.paths,
+    // ...jobOpenApi.paths,
     ...esealOpenApi.paths,
     ...apiKeyOpenApi.paths,
   },
   components: {
     securitySchemes: {
+      ...esealOpenApi.securitySchemes,
       ...apiKeyOpenApi.securitySchemes,
     },
     schemas: {
-      // ...tteOpenApi.schemas,
-      ...jobOpenApi.schemas,
+      // ...jobOpenApi.schemas,
       ...esealOpenApi.schemas,
       ...apiKeyOpenApi.schemas,
     },

@@ -21,8 +21,11 @@ export const app = new Hono<{ Variables: { apiKey: ApiKeyContext } }>();
 app.get('/health', (c) => c.json({ status: '🔥 Hono is running!' }));
 
 // Docs + admin key management: behind the admin key.
-app.use('/openapi.json', adminAuth());
-app.use('/docs', adminAuth());
+
+// ====== Uncomment jika ingin aktifkan auth /docs =====
+// app.use('/openapi.json', adminAuth());
+// app.use('/docs', adminAuth());
+
 app.use('/admin/*', adminAuth());
 
 app.get('/openapi.json', (c) => c.json(openApiDocument));

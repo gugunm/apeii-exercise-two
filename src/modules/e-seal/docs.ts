@@ -15,13 +15,54 @@ const BatchStep = {
   ],
 } as const;
 
+const apiSecurity = [{ apiKey: [] }];
+
+const unauthorized = {
+  description: 'Missing or invalid API key',
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        required: ['error'],
+        properties: { error: { type: 'string', example: 'Unauthorized' } },
+      },
+    },
+  },
+} as const;
+
+const forbidden = {
+  description: 'API key lacks the required scope',
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        required: ['error'],
+        properties: {
+          error: { type: 'string', example: 'Forbidden' },
+          missingScope: { type: 'string', example: 'eseal:write' },
+        },
+      },
+    },
+  },
+} as const;
+
 export const esealOpenApi = {
+  securitySchemes: {
+    apiKey: {
+      type: 'http',
+      scheme: 'bearer',
+      description:
+        'API key issued via POST /admin/keys. Send as `Authorization: Bearer <key>`. The key must hold the scope noted on each operation.',
+    },
+  },
   paths: {
     '/api/v1/e-seal': {
       post: {
         tags: ['E-Seal'],
         summary: 'Upload PDFs and queue them for BSrE e-seal',
         operationId: 'createEsealBatch',
+        security: apiSecurity,
+        description: 'Requires scope `eseal:write`.',
         requestBody: {
           required: true,
           content: {
@@ -46,12 +87,16 @@ export const esealOpenApi = {
             },
           },
           '400': { description: 'Invalid form data' },
+          '401': unauthorized,
+          '403': forbidden,
         },
       },
       get: {
         tags: ['E-Seal'],
         summary: 'List e-seal batches',
         operationId: 'listEsealBatches',
+        security: apiSecurity,
+        description: 'Requires scope `eseal:read`.',
         responses: {
           '200': {
             description: 'Batches ordered by creation time, newest first',
@@ -70,6 +115,8 @@ export const esealOpenApi = {
               },
             },
           },
+          '401': unauthorized,
+          '403': forbidden,
         },
       },
     },
@@ -78,6 +125,8 @@ export const esealOpenApi = {
         tags: ['E-Seal'],
         summary: 'Get an e-seal batch with files, download URLs and logs',
         operationId: 'getEsealBatch',
+        security: apiSecurity,
+        description: 'Requires scope `eseal:read`.',
         parameters: [
           {
             name: 'id',
@@ -117,6 +166,8 @@ export const esealOpenApi = {
               },
             },
           },
+          '401': unauthorized,
+          '403': forbidden,
         },
       },
     },
@@ -125,6 +176,8 @@ export const esealOpenApi = {
         tags: ['E-Seal'],
         summary: 'List files of a batch with view/download paths',
         operationId: 'listEsealBatchFiles',
+        security: apiSecurity,
+        description: 'Requires scope `eseal:read`.',
         parameters: [
           {
             name: 'id',
@@ -166,6 +219,8 @@ export const esealOpenApi = {
               },
             },
           },
+          '401': unauthorized,
+          '403': forbidden,
         },
       },
     },
@@ -174,6 +229,8 @@ export const esealOpenApi = {
         tags: ['E-Seal'],
         summary: 'View or download a raw or sealed PDF',
         operationId: 'getEsealFile',
+        security: apiSecurity,
+        description: 'Requires scope `eseal:read`.',
         parameters: [
           {
             name: 'id',
@@ -229,11 +286,20 @@ export const esealOpenApi = {
               },
             },
           },
+          '401': unauthorized,
+          '403': forbidden,
         },
       },
     },
   },
   schemas: {
+    Ulid: {
+      type: 'string',
+      minLength: 26,
+      maxLength: 26,
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$',
+      example: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+    },
     CreateEsealBatch: {
       type: 'object',
       required: ['files[]', 'userId', 'tampilan'],

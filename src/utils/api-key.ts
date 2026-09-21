@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from 'node:crypto';
 
-const PREFIX = 'tte_';
+const PREFIX = 'seal_';
 
 export function hashKey(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
