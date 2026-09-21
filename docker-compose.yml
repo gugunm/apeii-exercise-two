@@ -16,7 +16,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
       target: migrate
     image: tte-eseal-migrate:latest
     env_file:
@@ -27,7 +27,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
       target: runtime
     image: tte-eseal-app:latest
     env_file:
@@ -47,7 +47,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
       target: runtime
     image: tte-eseal-app:latest
     command: ["node", "dist/worker.js"]
