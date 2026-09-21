@@ -6,6 +6,7 @@ import {
   getKey,
   listKeys,
   revokeKey,
+  rotateKey,
   updateKey,
 } from './service.js';
 
@@ -29,4 +30,16 @@ export const apiKeyRoute = new Hono()
     const key = await revokeKey(c.req.param('id'));
     if (!key) return c.json({ error: 'Key not found' }, 404);
     return c.json({ data: key });
+  })
+  .post('/:id/rotate', async (c) => {
+    const result = await rotateKey(c.req.param('id'));
+    if (!result.ok) {
+      if (result.reason === 'not_found')
+        return c.json({ error: 'Key not found' }, 404);
+      return c.json(
+        { error: 'Key is not active; rotation requires an active key' },
+        409,
+      );
+    }
+    return c.json({ data: result.key });
   });

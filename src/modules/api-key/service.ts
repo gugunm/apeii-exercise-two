@@ -117,3 +117,28 @@ export async function updateKey(
     .returning();
   return row ? toPublic(row) : null;
 }
+
+export type RotateResult =
+  | { ok: true; key: PublicApiKey & { secret: string } }
+  | { ok: false; reason: 'not_found' | 'inactive' };
+
+// Hard rotation: mints a new secret on the same row (id, name, scopes, expiry
+// preserved) and invalidates the old secret immediately. Only active keys may
+// be rotated; revoked/expired keys are rejected.
+export async function rotateKey(id: string): Promise<RotateResult> {
+  const [row] = await db
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.id, id))
+    .limit(1);
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (!isApiKeyValid(row)) return { ok: false, reason: 'inactive' };
+
+  const { secret, prefix, hash } = generateKey();
+  const [updated] = await db
+    .update(apiKeys)
+    .set({ keyHash: hash, prefix })
+    .where(eq(apiKeys.id, id))
+    .returning();
+  return { ok: true, key: { ...toPublic(updated), secret } };
+}
