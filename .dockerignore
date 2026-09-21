@@ -1,0 +1,23 @@
+# dependencies & build output (rebuilt in-image)
+node_modules
+dist
+
+# secrets & local env (injected at runtime via env_file/environment)
+.env
+.env.*
+!.env.example
+
+# vcs & tooling
+.git
+.gitignore
+.gitattributes
+.vscode
+.claude
+
+# docs & the docker files themselves (not needed inside the image)
+docs
+docker
+
+# misc
+*.log
+.DS_Store
