@@ -2,14 +2,15 @@ import { Hono } from 'hono';
 import { createJob, findJobWithResult, listJobs } from './service.js';
 import { zValidator } from '@hono/zod-validator';
 import { CreateDocSummaryJobSchema } from './schema.js';
+import { requireScope } from '../../middlewares/scopes.js';
 
 export const docSummaryRoute = new Hono()
-  .post('/', zValidator('json', CreateDocSummaryJobSchema), async (c) => {
+  .post('/', requireScope('docsummary:write'), zValidator('json', CreateDocSummaryJobSchema), async (c) => {
     const job = await createJob(c.req.valid('json'));
     return c.json({ data: job }, 202);
   })
-  .get('/', async (c) => c.json({ data: await listJobs() }))
-  .get('/:id', async (c) => {
+  .get('/', requireScope('docsummary:read'), async (c) => c.json({ data: await listJobs() }))
+  .get('/:id', requireScope('docsummary:read'), async (c) => {
     const job = await findJobWithResult(c.req.param('id'));
     if (!job) return c.json({ error: 'Job not found' }, 404);
     return c.json({ data: job });
