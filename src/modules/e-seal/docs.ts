@@ -293,6 +293,13 @@ export const esealOpenApi = {
     },
   },
   schemas: {
+    Ulid: {
+      type: 'string',
+      minLength: 26,
+      maxLength: 26,
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$',
+      example: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+    },
     CreateEsealBatch: {
       type: 'object',
       required: ['files[]', 'userId', 'tampilan'],

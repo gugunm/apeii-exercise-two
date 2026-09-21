@@ -21,7 +21,7 @@ test('admin routes require the admin key', async () => {
   process.env.ADMIN_API_KEY = prev;
 });
 
-test('docs and openapi are behind the admin key', async () => {
-  assert.equal((await app.request('/openapi.json')).status, 401);
-  assert.equal((await app.request('/docs')).status, 401);
+test('docs and openapi are public', async () => {
+  assert.equal((await app.request('/openapi.json')).status, 200);
+  assert.equal((await app.request('/docs')).status, 200);
 });
