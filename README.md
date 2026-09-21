@@ -292,34 +292,45 @@ PostgreSQL and S3 are **external** — point the app at them via `.env`.
 
 ## Run
 
-`docker-compose.yml` lives at the repo root (the Dockerfile stays in
-`docker/`). Run from the repo root:
+`docker-compose.yml` and `Dockerfile` both live at the repo root. From the
+repo root:
 
 ```bash
 docker compose up -d --build
 ```
 
-This starts `redis`, runs `migrate` (Drizzle migrations) to completion, then
-starts `api` (published on `http://localhost:3000`) and `worker`.
+This starts `redis`, `api` (on `http://localhost:3000`), and `worker`.
+Database migrations are **not** run automatically — see below.
 
 - Health: `curl localhost:3000/health`.
 - Logs: `docker compose logs -f api worker`.
 - Stop: `docker compose down` (`-v` also removes the Redis volume).
 
+### Migrations
+
+The `migrate` service sits behind a compose profile, so it does not run on a
+plain `up`. Apply migrations explicitly once `DATABASE_URL` is reachable:
+
+```bash
+docker compose --profile migrate run --rm migrate
+```
+
 ### Coolify
 
 Set the **Docker Compose Location** to `/docker-compose.yml` (repo root — the
 Coolify default). Coolify runs compose with `--project-directory <repo-root>`,
-which is why `build.context` is `.` (repo root) with `dockerfile:
-docker/Dockerfile`. Set env vars (`DATABASE_URL`, `S3_*`, `BSRE_*`,
-`ADMIN_API_KEY`, …) in Coolify; `REDIS_URL` is fixed to the internal `redis`
-service by the compose file.
+so `build.context` is `.` with `dockerfile: Dockerfile`. Set env vars
+(`DATABASE_URL`, `S3_*`, `BSRE_*`, `ADMIN_API_KEY`, …) in Coolify; do **not**
+set `REDIS_URL` (the compose pins it to the internal `redis` service).
+`migrate` is profile-gated, so Coolify's `up` starts only
+`redis`/`api`/`worker`; run migrations once via the command above (from the
+Coolify terminal or the host).
 
 ## Services
 
 | Service | Image target | Purpose |
 | --- | --- | --- |
 | `redis` | `redis:7-alpine` | Local queue backend (persisted volume `redis-data`) |
-| `migrate` | `migrate` | One-shot `drizzle-kit migrate`, then exits |
+| `migrate` | `migrate` | Profile-gated one-shot migrations (run manually) |
 | `api` | `runtime` | `node dist/index.js`, port 3000 |
 | `worker` | `runtime` | `node dist/worker.js`, BullMQ consumer |
