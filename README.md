@@ -259,3 +259,56 @@ Body request
   "totp": "{{ totp }}"
 }
 ```
+
+# API KEY
+
+## Key Scopes
+
+```js
+export const KNOWN_SCOPES = [
+  'eseal:read',
+  'eseal:write',
+  'docsummary:read',
+  'docsummary:write',
+] as const;
+```
+
+# Docker deployment
+
+The app runs as two processes (HTTP API + BullMQ worker) plus a local Redis.
+PostgreSQL and S3 are **external** — point the app at them via `.env`.
+
+## Prerequisites
+
+- Docker with BuildKit and the Compose plugin.
+- A reachable PostgreSQL (`DATABASE_URL`) and S3-compatible store (`S3_*`).
+
+## Configure
+
+1. `cp .env.example .env` and fill every value (see `.env.example`).
+2. Leave `REDIS_URL` as-is — compose overrides it to `redis://redis:6379`.
+   Set `DATABASE_URL`/`S3_*` to your external services. If the database runs
+   on the Docker host, use `host.docker.internal` rather than `127.0.0.1`.
+
+## Run
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+This starts `redis`, runs `migrate` (Drizzle migrations) to completion, then
+starts `api` (published on `http://localhost:3000`) and `worker`.
+
+- Health: `curl localhost:3000/health`.
+- Logs: `docker compose -f docker/docker-compose.yml logs -f api worker`.
+- Stop: `docker compose -f docker/docker-compose.yml down` (`-v` also removes
+  the Redis volume).
+
+## Services
+
+| Service | Image target | Purpose |
+| --- | --- | --- |
+| `redis` | `redis:7-alpine` | Local queue backend (persisted volume `redis-data`) |
+| `migrate` | `migrate` | One-shot `drizzle-kit migrate`, then exits |
+| `api` | `runtime` | `node dist/index.js`, port 3000 |
+| `worker` | `runtime` | `node dist/worker.js`, BullMQ consumer |
