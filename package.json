@@ -6,7 +6,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "worker": "tsx watch --env-file=.env src/worker.ts",
-    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "test": "node --import tsx --test --test-force-exit 'src/**/*.test.ts'",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate && printf '\\n✅ migration success\\n'",
     "db:push": "drizzle-kit push",
