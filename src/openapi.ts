@@ -18,6 +18,7 @@ export const openApiDocument = {
   },
   components: {
     securitySchemes: {
+      ...esealOpenApi.securitySchemes,
       ...apiKeyOpenApi.securitySchemes,
     },
     schemas: {
