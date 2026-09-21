@@ -161,3 +161,101 @@ so the S3 endpoint does not need to be reachable from the client.
 ```bash
 pnpm test
 ```
+
+# Endpoint BsRE
+
+## Request Seal Activation TOTP
+
+POST `http://10.10.20.204/api/v2/seal/get/activation`
+
+Header : Basic auth
+
+Body request
+
+```json
+{
+  "idSubscriber": "{{ id_subs }}",
+  "totp": "{{ prev_totp }}"
+}
+```
+
+## Request Seal OTP
+
+POST `http://10.10.20.204/api/v2/seal/get/totp`
+
+Header : Basic auth
+
+Body Request
+
+```json
+{
+  "idSubscriber": "{{ id_subs }}",
+  "totp": "{{ totp }}",
+  "data": "1"
+}
+```
+
+## Seal PDF
+
+Desc : seal pdf ada 2 jenis, invisible dan visible
+
+POST `http://10.10.20.204/api/v2/seal/pdf`
+
+Header : Basic auth
+
+Body request **INVISIBLE**
+
+```json
+{
+  "idSubscriber": "{{ id_subs }}",
+  "totp": "{{ totp }}",
+  "signatureProperties": [
+    {
+      "tampilan": "INVISIBLE",
+      "location": "null",
+      "reason": "null",
+      "contactInfo": "null"
+    }
+  ],
+  "file": ["{{ pdf_base64_format_1 }}", "{{ pdf_base64_format_2 }}"]
+}
+```
+
+Body request **VISIBLE**
+
+```json
+{
+  "idSubscriber": "{{ id_subs }}",
+  "totp": "{{ totp }}",
+  "signatureProperties": [
+    {
+      "tampilan": "INVISIBLE",
+      "imageBase64": "{{ image_ttd_base64 }}",
+      "location": "Jakarta",
+      "reason": "null",
+      "contactInfo": "null",
+      "page": 1,
+      "originX": 0.0,
+      "originY": 0.0,
+      "width": 150.0,
+      "height": 50.0
+    }
+  ],
+  "file": ["{{ pdf_base64_format_1 }}", "{{ pdf_base64_format_2 }}"]
+}
+```
+
+## Revoke Seal Activation
+
+POST `http://10.10.20.204/api/v2/seal/revoke/activation`
+
+Header : Basic auth
+
+Body request
+
+```json
+{
+  "idSubscriber": "{{ id_subs }}",
+  "totp": "{{ totp }}"
+}
+```
