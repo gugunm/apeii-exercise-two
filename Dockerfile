@@ -1,44 +1,45 @@
-# syntax=docker/dockerfile:1
+# Build context adalah root repository (compose ada di root, `context: .`).
+#   docker compose up -d --build
 
-# ---- base: node + pnpm via corepack ----
-FROM node:22-bookworm-slim AS base
-ENV PNPM_HOME="/pnpm" \
-    PATH="/pnpm:$PATH"
+FROM node:22-alpine AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
-WORKDIR /app
 
-# ---- deps: full dependency graph (incl. dev) for building & migrating ----
+# --- Dependensi ---------------------------------------------------------
+# Dipisah agar layer install hanya dibangun ulang ketika manifest berubah.
+# `pnpm-workspace.yaml` wajib ikut karena memuat `allowBuilds`.
 FROM base AS deps
+WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
-# ---- build: compile TypeScript to dist/ ----
-FROM deps AS build
-COPY tsconfig.build.json tsconfig.json ./
-COPY src ./src
+# --- Build aplikasi -----------------------------------------------------
+# `tsc` mengompilasi `src/` ke `dist/` (dist/index.js = API, dist/worker.js = worker).
+FROM deps AS builder
+WORKDIR /app
+COPY . .
 RUN pnpm build
 
-# ---- prod-deps: production-only node_modules ----
-FROM base AS prod-deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod
-
-# ---- migrate: one-shot drizzle migrations against the external DB ----
+# --- Migrasi database ---------------------------------------------------
+# `drizzle-kit` adalah devDependency sehingga tidak ikut ke image runtime.
+# Stage ini dipakai service `migrate` lewat
+# `docker compose --profile migrate run --rm migrate`.
 FROM deps AS migrate
+WORKDIR /app
 COPY drizzle.config.ts ./
 COPY drizzle ./drizzle
 CMD ["pnpm", "db:migrate"]
 
-# ---- runtime: lean production image (API by default; worker overrides CMD) ----
+# --- Runtime ------------------------------------------------------------
+# @hono/node-server listen di 0.0.0.0:3000. Worker memakai image sama dengan
+# `command: ["node", "dist/worker.js"]` di compose.
 FROM base AS runtime
+WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
 COPY package.json ./
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "dist/index.js"]

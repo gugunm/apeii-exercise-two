@@ -1,8 +1,13 @@
-name: tte-eseal
+# Jalankan dari root repository:
+#   docker compose up -d --build
+#
+# Variabel runtime diambil dari `.env` (root repo) lewat `env_file:`.
+# Aplikasi ini tidak punya build arg, jadi tidak perlu `--env-file`.
 
 services:
   redis:
     image: redis:7-alpine
+    container_name: tte_redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -12,17 +17,11 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrate
-    image: tte-eseal-migrate:latest
-    profiles: ["migrate"]
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   api:
     build:
@@ -30,33 +29,33 @@ services:
       dockerfile: Dockerfile
       target: runtime
     image: tte-eseal-app:latest
+    container_name: tte_api
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      # REDIS_URL dipaksa ke service internal, menimpa nilai dari .env.
       REDIS_URL: redis://redis:6379
-      S3_REGION: ${S3_REGION}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
-      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      BSRE_BASE_URL: ${BSRE_BASE_URL}
-      BSRE_USERNAME: ${BSRE_USERNAME}
-      BSRE_PASSWORD: ${BSRE_PASSWORD}
-      BSRE_ID_SUBSCRIBER: ${BSRE_ID_SUBSCRIBER}
-      BSRE_SEAL_IMAGE_KEY: ${BSRE_SEAL_IMAGE_KEY}
-      ESEAL_MAX_FILES: ${ESEAL_MAX_FILES}
-      ESEAL_MAX_FILE_BYTES: ${ESEAL_MAX_FILE_BYTES}
-      ESEAL_SIGNED_URL_TTL: ${ESEAL_SIGNED_URL_TTL}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
     ports:
+      # Diekspos ke semua interface; diakses langsung lewat IP server.
       - "3030:3000"
     depends_on:
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    # BullMQ worker memproses job panjang (BSrE); beri waktu drain saat SIGTERM.
+    stop_grace_period: 30s
+    healthcheck:
+      # /health publik, tidak menyentuh DB. Image alpine punya wget (busybox).
+      test:
+        ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1"]
+      interval: 30s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   worker:
     build:
@@ -64,32 +63,35 @@ services:
       dockerfile: Dockerfile
       target: runtime
     image: tte-eseal-app:latest
+    container_name: tte_worker
+    restart: unless-stopped
     command: ["node", "dist/worker.js"]
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       REDIS_URL: redis://redis:6379
-      S3_REGION: ${S3_REGION}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
-      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      BSRE_BASE_URL: ${BSRE_BASE_URL}
-      BSRE_USERNAME: ${BSRE_USERNAME}
-      BSRE_PASSWORD: ${BSRE_PASSWORD}
-      BSRE_ID_SUBSCRIBER: ${BSRE_ID_SUBSCRIBER}
-      BSRE_SEAL_IMAGE_KEY: ${BSRE_SEAL_IMAGE_KEY}
-      ESEAL_MAX_FILES: ${ESEAL_MAX_FILES}
-      ESEAL_MAX_FILE_BYTES: ${ESEAL_MAX_FILE_BYTES}
-      ESEAL_SIGNED_URL_TTL: ${ESEAL_SIGNED_URL_TTL}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Dijalankan manual, bukan ikut `up`:
+  #   docker compose --profile tools run --rm migrate
+  migrate:
+    profiles:
+      - tools
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    image: tte-eseal-migrate:latest
+    env_file:
+      - .env
 
 volumes:
   redis-data:
