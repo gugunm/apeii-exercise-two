@@ -20,9 +20,8 @@ services:
       target: migrate
     image: tte-eseal-migrate:latest
     profiles: ["migrate"]
-    env_file:
-      - path: .env
-        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
     restart: "no"
 
   api:
@@ -31,11 +30,27 @@ services:
       dockerfile: Dockerfile
       target: runtime
     image: tte-eseal-app:latest
-    env_file:
-      - path: .env
-        required: false
     environment:
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       REDIS_URL: redis://redis:6379
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
+      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      BSRE_BASE_URL: ${BSRE_BASE_URL}
+      BSRE_USERNAME: ${BSRE_USERNAME}
+      BSRE_PASSWORD: ${BSRE_PASSWORD}
+      BSRE_ID_SUBSCRIBER: ${BSRE_ID_SUBSCRIBER}
+      BSRE_SEAL_IMAGE_KEY: ${BSRE_SEAL_IMAGE_KEY}
+      ESEAL_MAX_FILES: ${ESEAL_MAX_FILES}
+      ESEAL_MAX_FILE_BYTES: ${ESEAL_MAX_FILE_BYTES}
+      ESEAL_SIGNED_URL_TTL: ${ESEAL_SIGNED_URL_TTL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
     ports:
       - "3030:3000"
     depends_on:
@@ -50,11 +65,27 @@ services:
       target: runtime
     image: tte-eseal-app:latest
     command: ["node", "dist/worker.js"]
-    env_file:
-      - path: .env
-        required: false
     environment:
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       REDIS_URL: redis://redis:6379
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
+      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      BSRE_BASE_URL: ${BSRE_BASE_URL}
+      BSRE_USERNAME: ${BSRE_USERNAME}
+      BSRE_PASSWORD: ${BSRE_PASSWORD}
+      BSRE_ID_SUBSCRIBER: ${BSRE_ID_SUBSCRIBER}
+      BSRE_SEAL_IMAGE_KEY: ${BSRE_SEAL_IMAGE_KEY}
+      ESEAL_MAX_FILES: ${ESEAL_MAX_FILES}
+      ESEAL_MAX_FILE_BYTES: ${ESEAL_MAX_FILE_BYTES}
+      ESEAL_SIGNED_URL_TTL: ${ESEAL_SIGNED_URL_TTL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
