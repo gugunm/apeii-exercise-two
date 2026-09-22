@@ -328,9 +328,11 @@ Coolify terminal or the host).
 
 ## Services
 
-| Service | Image target | Purpose |
-| --- | --- | --- |
-| `redis` | `redis:7-alpine` | Local queue backend (persisted volume `redis-data`) |
-| `migrate` | `migrate` | Profile-gated one-shot migrations (run manually) |
-| `api` | `runtime` | `node dist/index.js`, port 3000 |
-| `worker` | `runtime` | `node dist/worker.js`, BullMQ consumer |
+| Service   | Image target     | Purpose                                             |
+| --------- | ---------------- | --------------------------------------------------- |
+| `redis`   | `redis:7-alpine` | Local queue backend (persisted volume `redis-data`) |
+| `migrate` | `migrate`        | Profile-gated one-shot migrations (run manually)    |
+| `api`     | `runtime`        | `node dist/index.js`, port 3000                     |
+| `worker`  | `runtime`        | `node dist/worker.js`, BullMQ consumer              |
+
+### ini adalah akhir dari readme
