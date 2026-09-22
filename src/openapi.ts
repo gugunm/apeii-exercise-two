@@ -8,7 +8,9 @@ export const openApiDocument = {
     title: 'TTE AND E-SEAL API',
     version: '1.0.0',
   },
-  servers: [{ url: 'http://localhost:3000' }],
+  // Relative URL: Scalar targets the same origin the docs are served from
+  // (server IP:port, domain, or localhost) instead of a hardcoded host.
+  servers: [{ url: '/' }],
   paths: {
     // ...jobOpenApi.paths,
     ...esealOpenApi.paths,
