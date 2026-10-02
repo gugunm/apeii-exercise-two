@@ -90,13 +90,15 @@ stores the results in S3 under `{batchId}/verified/`.
 ## Setup
 
 Fill the `S3_*`, `BSRE_*` and `ESEAL_*` values in `.env` (see
-`.env.example`), then seed the BSrE activation TOTP once:
+`.env.example`). The BSrE activation TOTP is managed outside this system:
+write the current value into `bsre_totp` whenever it changes (the app never
+refreshes it):
 
 ```bash
-psql "$DATABASE_URL" -c "INSERT INTO bsre_totp (kind, totp, expires_at) VALUES ('ACTIVATION', '<totp>', '<expires>') ON CONFLICT (kind) DO UPDATE SET totp = EXCLUDED.totp, expires_at = EXCLUDED.expires_at;"
+psql "$DATABASE_URL" -c "INSERT INTO bsre_totp (kind, totp, id_subscriber, expires_at) VALUES ('ACTIVATION', '<totp>', '<id_subscriber>', '<expires>') ON CONFLICT (kind) DO UPDATE SET totp = EXCLUDED.totp, id_subscriber = EXCLUDED.id_subscriber, expires_at = EXCLUDED.expires_at;"
 ```
 
-The worker refreshes the activation and seal TOTPs afterwards.
+The worker only requests a fresh single-use seal TOTP from it per batch.
 
 ## Create a batch
 

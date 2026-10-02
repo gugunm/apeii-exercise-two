@@ -149,6 +149,8 @@ export const bsreTotp = pgTable('bsre_totp', {
 
   totp: varchar('totp', { length: 10 }).notNull(),
 
+  idSubscriber: varchar('id_subscriber', { length: 100 }),
+
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 
   updatedAt: timestamp('updated_at', { withTimezone: true })

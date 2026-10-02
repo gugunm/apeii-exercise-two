@@ -9,9 +9,8 @@ import {
 import * as service from '../modules/e-seal/service.js';
 import * as s3 from '../utils/s3.js';
 import {
-  dbTotpStore,
+  dbActivation,
   getSealTotp,
-  refreshActivationTotp,
   refreshSealTotp,
   sealPdf,
 } from '../utils/bsre.js';
@@ -29,8 +28,7 @@ const deps: SealBatchDeps = {
   putObject: s3.putObject,
   getSealTotp: (onRefresh) =>
     getSealTotp({
-      ...dbTotpStore,
-      refreshActivationTotp,
+      getActivation: dbActivation,
       refreshSealTotp,
       onRefresh,
     }),

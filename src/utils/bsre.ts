@@ -10,7 +10,6 @@ function env() {
     baseUrl: process.env.BSRE_BASE_URL ?? '',
     username: process.env.BSRE_USERNAME ?? '',
     password: process.env.BSRE_PASSWORD ?? '',
-    idSubscriber: process.env.BSRE_ID_SUBSCRIBER ?? '',
   };
 }
 
@@ -33,32 +32,6 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export type TotpResult = { totp: string; expires: string };
 
-type ActivationResponse = {
-  success: boolean;
-  message: string | null;
-  data: {
-    message: string;
-    totp: string;
-    expires: string;
-    result: boolean;
-  } | null;
-};
-
-export async function refreshActivationTotp(
-  current: string,
-): Promise<TotpResult> {
-  const r = await post<ActivationResponse>('/api/v2/seal/get/activation', {
-    idSubscriber: env().idSubscriber,
-    totp: current,
-  });
-  if (!r.success || !r.data?.result) {
-    throw new Error(
-      `BSrE activation TOTP failed: ${r.data?.message ?? r.message ?? 'unknown'}`,
-    );
-  }
-  return { totp: r.data.totp, expires: r.data.expires };
-}
-
 type SealTotpResponse = {
   message: string;
   totp: string;
@@ -67,10 +40,11 @@ type SealTotpResponse = {
 };
 
 export async function refreshSealTotp(
+  idSubscriber: string,
   activationTotp: string,
 ): Promise<TotpResult> {
   const r = await post<SealTotpResponse>('/api/v2/seal/get/totp', {
-    idSubscriber: env().idSubscriber,
+    idSubscriber,
     totp: activationTotp,
     data: '1',
   });
@@ -79,6 +53,8 @@ export async function refreshSealTotp(
 }
 
 export type SealPdfArgs = {
+  /** `bsre_totp.id_subscriber` of the activation row the seal TOTP was issued for */
+  idSubscriber: string;
   totp: string;
   sealConfig: SealConfig;
   /** base64 PDFs, request order */
@@ -90,6 +66,7 @@ export type SealPdfArgs = {
 export type SealPdfResult = { time: number; file: string[] };
 
 export function sealPdf({
+  idSubscriber,
   totp,
   sealConfig,
   files,
@@ -119,7 +96,7 @@ export function sealPdf({
           },
         ];
   return post<SealPdfResult>('/api/v2/seal/pdf', {
-    idSubscriber: env().idSubscriber,
+    idSubscriber,
     totp,
     signatureProperties,
     file: files,
@@ -128,70 +105,35 @@ export function sealPdf({
 
 // ---------- TOTP chain ----------
 
-export type TotpKind = 'ACTIVATION' | 'SEAL';
-export type TotpRow = { totp: string; expiresAt: Date };
+export type ActivationRow = { totp: string; idSubscriber: string | null };
 
 export type TotpDeps = {
-  get(kind: TotpKind): Promise<TotpRow | null>;
-  set(kind: TotpKind, row: TotpRow): Promise<void>;
-  refreshActivationTotp: typeof refreshActivationTotp;
+  /** Activation row is provisioned outside this system (`bsre_totp`); null when absent. */
+  getActivation(): Promise<ActivationRow | null>;
   refreshSealTotp: typeof refreshSealTotp;
-  /** Called after a row was refreshed; the worker uses it to write a batch log. */
-  onRefresh?: (kind: TotpKind) => Promise<void>;
-  now?: () => Date;
+  /** Called after a seal TOTP was issued; the worker uses it to write a batch log. */
+  onRefresh?: () => Promise<void>;
 };
 
-/** BSrE returns `+0000`; Date.parse wants `+00:00`. */
-export function parseBsreDate(s: string): Date {
-  return new Date(s.replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
-}
-
-const VALIDITY_MARGIN_MS = 60_000;
-
-function isValid(row: TotpRow | null, now: Date): boolean {
-  return (
-    !!row && row.expiresAt.getTime() > now.getTime() + VALIDITY_MARGIN_MS
-  );
-}
-
-export async function getActivationTotp(deps: TotpDeps): Promise<string> {
-  const now = deps.now?.() ?? new Date();
-  const row = await deps.get('ACTIVATION');
-  if (!row) throw new Error('BSRE_ACTIVATION_TOTP_NOT_SEEDED');
-  if (isValid(row, now)) return row.totp;
-
-  const fresh = await deps.refreshActivationTotp(row.totp);
-  await deps.set('ACTIVATION', {
-    totp: fresh.totp,
-    expiresAt: parseBsreDate(fresh.expires),
-  });
-  await deps.onRefresh?.('ACTIVATION');
-  return fresh.totp;
-}
+export type SealTotp = { totp: string; idSubscriber: string };
 
 /** Seal TOTP is single-use: request a fresh one for every seal call, never persist it. */
-export async function getSealTotp(deps: TotpDeps): Promise<string> {
-  const activation = await getActivationTotp(deps);
-  const fresh = await deps.refreshSealTotp(activation);
-  await deps.onRefresh?.('SEAL');
-  return fresh.totp;
+export async function getSealTotp(deps: TotpDeps): Promise<SealTotp> {
+  const activation = await deps.getActivation();
+  if (!activation) throw new Error('BSRE_ACTIVATION_TOTP_NOT_SEEDED');
+  const { idSubscriber } = activation;
+  if (!idSubscriber) {
+    throw new Error('BSRE_ACTIVATION_ID_SUBSCRIBER_NOT_SEEDED');
+  }
+  const fresh = await deps.refreshSealTotp(idSubscriber, activation.totp);
+  await deps.onRefresh?.();
+  return { totp: fresh.totp, idSubscriber };
 }
 
-export const dbTotpStore: Pick<TotpDeps, 'get' | 'set'> = {
-  async get(kind) {
-    const [row] = await db
-      .select()
-      .from(bsreTotp)
-      .where(eq(bsreTotp.kind, kind));
-    return row ? { totp: row.totp, expiresAt: row.expiresAt } : null;
-  },
-  async set(kind, { totp, expiresAt }) {
-    await db
-      .insert(bsreTotp)
-      .values({ kind, totp, expiresAt })
-      .onConflictDoUpdate({
-        target: bsreTotp.kind,
-        set: { totp, expiresAt, updatedAt: new Date() },
-      });
-  },
-};
+export async function dbActivation(): Promise<ActivationRow | null> {
+  const [row] = await db
+    .select()
+    .from(bsreTotp)
+    .where(eq(bsreTotp.kind, 'ACTIVATION'));
+  return row ? { totp: row.totp, idSubscriber: row.idSubscriber } : null;
+}

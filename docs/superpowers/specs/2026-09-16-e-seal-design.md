@@ -330,14 +330,14 @@ Functions:
 ### 7.2 BSrE — `src/utils/bsre.ts`
 
 Uses Node's built-in `fetch`. Basic auth header from `BSRE_USERNAME` /
-`BSRE_PASSWORD`. Base URL `BSRE_BASE_URL`. Subscriber `BSRE_ID_SUBSCRIBER`.
+`BSRE_PASSWORD`. Base URL `BSRE_BASE_URL`. Subscriber from `bsre_totp.id_subscriber`.
 Any non-2xx response throws with the response body text.
 
 `refreshActivationTotp(currentActivationTotp: string)` →
 `POST /api/v2/seal/get/activation`
 
 ```json
-{ "idSubscriber": "<BSRE_ID_SUBSCRIBER>", "totp": "<currentActivationTotp>" }
+{ "idSubscriber": "<bsre_totp.id_subscriber>", "totp": "<currentActivationTotp>" }
 ```
 
 Response:
@@ -362,7 +362,7 @@ Response:
 `refreshSealTotp(activationTotp: string)` → `POST /api/v2/seal/get/totp`
 
 ```json
-{ "idSubscriber": "<BSRE_ID_SUBSCRIBER>", "totp": "<activationTotp>", "data": "1" }
+{ "idSubscriber": "<bsre_totp.id_subscriber>", "totp": "<activationTotp>", "data": "1" }
 ```
 
 Response: `{ "message": string, "totp": string, "expires": string, "result": boolean }`.
@@ -438,7 +438,6 @@ S3_ENDPOINT=
 BSRE_BASE_URL=
 BSRE_USERNAME=
 BSRE_PASSWORD=
-BSRE_ID_SUBSCRIBER=
 BSRE_SEAL_IMAGE_KEY=
 
 ESEAL_MAX_FILES=20

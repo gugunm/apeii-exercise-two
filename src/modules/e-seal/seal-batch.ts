@@ -5,7 +5,7 @@ import type { BatchStep, LogEntry } from './service.js';
 import type {
   SealPdfArgs,
   SealPdfResult,
-  TotpKind,
+  SealTotp,
 } from '../../utils/bsre.js';
 
 export type SealBatchDeps = {
@@ -22,7 +22,7 @@ export type SealBatchDeps = {
   log(batchId: string, entry: LogEntry): Promise<void>;
   getObject(key: string): Promise<Buffer>;
   putObject(key: string, body: Buffer, contentType: string): Promise<void>;
-  getSealTotp(onRefresh: (kind: TotpKind) => Promise<void>): Promise<string>;
+  getSealTotp(onRefresh: () => Promise<void>): Promise<SealTotp>;
   sealPdf(args: SealPdfArgs): Promise<SealPdfResult>;
   sealImageKey: string;
 };
@@ -58,15 +58,15 @@ export async function sealBatch(
 
     step = 'SEALING';
     await deps.markStep(batchId, step);
-    const totp = await deps.getSealTotp((kind) =>
+    const { totp, idSubscriber } = await deps.getSealTotp(() =>
       deps.log(batchId, {
         level: 'INFO',
         step: 'SEALING',
-        message:
-          kind === 'SEAL' ? 'Seal TOTP refreshed' : 'Activation TOTP refreshed',
+        message: 'Seal TOTP refreshed',
       }),
     );
     const sealed = await deps.sealPdf({
+      idSubscriber,
       totp,
       sealConfig: batch.sealConfig,
       files: base64Files,

@@ -1,0 +1,1 @@
+ALTER TABLE "bsre_totp" ADD COLUMN "id_subscriber" varchar(100);

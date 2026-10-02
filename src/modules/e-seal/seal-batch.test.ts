@@ -41,11 +41,17 @@ function makeDeps(opts: {
       calls.push(['putObject', key, body.toString()]);
     },
     getSealTotp: async (onRefresh) => {
-      await onRefresh('SEAL');
-      return 'TOTP';
+      await onRefresh();
+      return { totp: 'TOTP', idSubscriber: 'SUB' };
     },
     sealPdf: async (args) => {
-      calls.push(['sealPdf', args.totp, args.files.length, args.imageBase64]);
+      calls.push([
+        'sealPdf',
+        args.totp,
+        args.files.length,
+        args.imageBase64,
+        args.idSubscriber,
+      ]);
       if (opts.sealError) throw opts.sealError;
       return {
         time: 42,
@@ -89,6 +95,8 @@ test('happy path: steps, uploads, logs in order', async () => {
   // INVISIBLE: no seal image fetched
   const seal = calls.find((c) => c[0] === 'sealPdf')!;
   assert.equal(seal[3], undefined);
+  // id_subscriber from the seal TOTP step is the one used for seal/pdf
+  assert.equal(seal[4], 'SUB');
 });
 
 test('VISIBLE passes the seal image as base64', async () => {

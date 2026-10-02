@@ -19,7 +19,7 @@
 - External services (never containerized): PostgreSQL (`DATABASE_URL`) and S3 (`S3_*`). Local service: Redis (`REDIS_URL`).
 - Compose file lives in `docker/`, so build `context: ..` and `env_file: ../.env`.
 - `REDIS_URL` MUST be overridden in compose `environment:` to `redis://redis:6379` (the `.env` default points at `127.0.0.1`, unreachable from inside a container).
-- Required env keys (from `.env.example`): `DATABASE_URL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `REDIS_URL`, `S3_REGION`, `S3_BUCKET`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE`, `S3_SERVER_SIDE_ENCRYPTION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BSRE_BASE_URL`, `BSRE_USERNAME`, `BSRE_PASSWORD`, `BSRE_ID_SUBSCRIBER`, `BSRE_SEAL_IMAGE_KEY`, `ESEAL_MAX_FILES`, `ESEAL_MAX_FILE_BYTES`, `ESEAL_SIGNED_URL_TTL`, `ADMIN_API_KEY`.
+- Required env keys (from `.env.example`): `DATABASE_URL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `REDIS_URL`, `S3_REGION`, `S3_BUCKET`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE`, `S3_SERVER_SIDE_ENCRYPTION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BSRE_BASE_URL`, `BSRE_USERNAME`, `BSRE_PASSWORD`, `BSRE_SEAL_IMAGE_KEY`, `ESEAL_MAX_FILES`, `ESEAL_MAX_FILE_BYTES`, `ESEAL_SIGNED_URL_TTL`, `ADMIN_API_KEY`.
 - Verification is Docker-level (build succeeds, container serves `/health`, `compose config` validates), not unit tests — there is no test framework for infra here.
 
 ---
