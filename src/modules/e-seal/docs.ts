@@ -62,7 +62,9 @@ export const esealOpenApi = {
         summary: 'Upload PDFs and queue them for BSrE e-seal',
         operationId: 'createEsealBatch',
         security: apiSecurity,
-        description: 'Requires scope `eseal:write`.',
+        description:
+          'Requires scope `eseal:write`.\n\n' +
+          'With `tampilan=VISIBLE`, `imageBase64` is required: the seal image is sent by the caller as a plain base64 string (no `data:` prefix). The API stores it in S3 and the worker forwards it to BSrE as `imageBase64` in `signatureProperties`.',
         requestBody: {
           required: true,
           content: {
@@ -310,13 +312,30 @@ export const esealOpenApi = {
           description: 'PDF files, 1..ESEAL_MAX_FILES',
         },
         userId: { type: 'string' },
-        tampilan: { type: 'string', enum: ['INVISIBLE', 'VISIBLE'] },
-        page: { type: 'integer', minimum: 1, description: 'VISIBLE only' },
-        originX: { type: 'number', description: 'VISIBLE only' },
-        originY: { type: 'number', description: 'VISIBLE only' },
-        width: { type: 'number', description: 'VISIBLE only' },
-        height: { type: 'number', description: 'VISIBLE only' },
-        location: { type: 'string', description: 'VISIBLE only' },
+        tampilan: {
+          type: 'string',
+          enum: ['INVISIBLE', 'VISIBLE'],
+          description:
+            'VISIBLE requires `page`, `originX`, `originY`, `width`, `height`, `location` and `imageBase64`.',
+        },
+        page: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Required when tampilan=VISIBLE',
+        },
+        originX: { type: 'number', description: 'Required when tampilan=VISIBLE' },
+        originY: { type: 'number', description: 'Required when tampilan=VISIBLE' },
+        width: { type: 'number', description: 'Required when tampilan=VISIBLE' },
+        height: { type: 'number', description: 'Required when tampilan=VISIBLE' },
+        location: {
+          type: 'string',
+          description: 'Required when tampilan=VISIBLE',
+        },
+        imageBase64: {
+          type: 'string',
+          description:
+            'Required when tampilan=VISIBLE. Seal image as plain base64, no `data:` prefix.',
+        },
         reason: { type: 'string', default: 'null' },
       },
     },
@@ -345,6 +364,10 @@ export const esealOpenApi = {
         width: { type: 'number' },
         height: { type: 'number' },
         location: { type: 'string' },
+        imageKey: {
+          type: 'string',
+          description: 'S3 key of the stored seal image (VISIBLE only)',
+        },
       },
     },
     EsealBatch: {

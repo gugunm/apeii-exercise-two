@@ -60,7 +60,6 @@ function makeDeps(opts: {
           args.files.map((f) => Buffer.from(`sealed-${f}`).toString('base64')),
       };
     },
-    sealImageKey: 'seal.png',
   };
   return { deps, calls };
 }
@@ -99,7 +98,7 @@ test('happy path: steps, uploads, logs in order', async () => {
   assert.equal(seal[4], 'SUB');
 });
 
-test('VISIBLE passes the seal image as base64', async () => {
+test('VISIBLE passes the caller-supplied seal image (read from its S3 key) as base64', async () => {
   const { deps, calls } = makeDeps({
     sealConfig: {
       tampilan: 'VISIBLE',
@@ -110,11 +109,15 @@ test('VISIBLE passes the seal image as base64', async () => {
       width: 150,
       height: 50,
       location: 'Jakarta',
+      imageKey: 'B1/seal-image',
     },
   });
   await sealBatch('B1', { current: 1, max: 3 }, deps);
   const seal = calls.find((c) => c[0] === 'sealPdf')!;
-  assert.equal(seal[3], Buffer.from('content-of-seal.png').toString('base64'));
+  assert.equal(
+    seal[3],
+    Buffer.from('content-of-B1/seal-image').toString('base64'),
+  );
 });
 
 test('file count mismatch throws and marks retry on non-final attempt', async () => {

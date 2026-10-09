@@ -65,13 +65,16 @@ export type SealPdfArgs = {
 
 export type SealPdfResult = { time: number; file: string[] };
 
-export function sealPdf({
+export async function sealPdf({
   idSubscriber,
   totp,
   sealConfig,
   files,
   imageBase64,
 }: SealPdfArgs): Promise<SealPdfResult> {
+  if (sealConfig.tampilan === 'VISIBLE' && !imageBase64) {
+    throw new Error('VISIBLE seal requires imageBase64');
+  }
   const signatureProperties =
     sealConfig.tampilan === 'INVISIBLE'
       ? [

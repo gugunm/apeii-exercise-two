@@ -24,7 +24,6 @@ export type SealBatchDeps = {
   putObject(key: string, body: Buffer, contentType: string): Promise<void>;
   getSealTotp(onRefresh: () => Promise<void>): Promise<SealTotp>;
   sealPdf(args: SealPdfArgs): Promise<SealPdfResult>;
-  sealImageKey: string;
 };
 
 export type Attempt = { current: number; max: number };
@@ -46,9 +45,10 @@ export async function sealBatch(
         (await deps.getObject(f.rawPath)).toString('base64'),
       ),
     );
+    const { sealConfig } = batch;
     const imageBase64 =
-      batch.sealConfig.tampilan === 'VISIBLE'
-        ? (await deps.getObject(deps.sealImageKey)).toString('base64')
+      sealConfig.tampilan === 'VISIBLE'
+        ? (await deps.getObject(sealConfig.imageKey)).toString('base64')
         : undefined;
     await deps.log(batchId, {
       level: 'INFO',

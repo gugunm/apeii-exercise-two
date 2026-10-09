@@ -24,6 +24,8 @@ const SIGNED_URL_TTL = Number(process.env.ESEAL_SIGNED_URL_TTL ?? 900);
 const rawKey = (batchId: string, position: number) =>
   `${batchId}/raw/${position}.pdf`;
 
+export const sealImageKey = (batchId: string) => `${batchId}/seal-image`;
+
 export async function logBatch(batchId: string, entry: LogEntry) {
   await db.insert(esealLogs).values({
     batchId,
@@ -49,11 +51,19 @@ export async function createBatch(input: CreateEsealInput) {
     ),
   );
 
+  if (input.tampilan === 'VISIBLE') {
+    await putObject(
+      sealImageKey(batchId),
+      Buffer.from(input.imageBase64, 'base64'),
+      'application/octet-stream',
+    );
+  }
+
   await db.transaction(async (tx) => {
     await tx.insert(esealBatches).values({
       id: batchId,
       userId: input.userId,
-      sealConfig: toSealConfig(input),
+      sealConfig: toSealConfig(input, sealImageKey(batchId)),
     });
     await tx.insert(esealFiles).values(
       files.map((file, i) => ({

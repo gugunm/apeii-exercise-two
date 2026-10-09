@@ -16,7 +16,7 @@ test('INVISIBLE: accepts files + userId, strips positional fields', () => {
   if (!result.success) return;
   assert.equal(result.data.reason, 'null');
   assert.equal('page' in result.data, false);
-  assert.deepEqual(toSealConfig(result.data), {
+  assert.deepEqual(toSealConfig(result.data, 'B1/seal-image'), {
     tampilan: 'INVISIBLE',
     reason: 'null',
   });
@@ -33,10 +33,11 @@ test('VISIBLE: coerces numeric strings and requires coordinates', () => {
     width: '150',
     height: '50',
     location: 'Jakarta',
+    imageBase64: 'aGVsbG8=',
   });
   assert.equal(result.success, true);
   if (!result.success) return;
-  assert.deepEqual(toSealConfig(result.data), {
+  assert.deepEqual(toSealConfig(result.data, 'B1/seal-image'), {
     tampilan: 'VISIBLE',
     reason: 'null',
     page: 1,
@@ -45,6 +46,7 @@ test('VISIBLE: coerces numeric strings and requires coordinates', () => {
     width: 150,
     height: 50,
     location: 'Jakarta',
+    imageKey: 'B1/seal-image',
   });
 });
 
@@ -55,6 +57,44 @@ test('VISIBLE without coordinates is rejected', () => {
     tampilan: 'VISIBLE',
   });
   assert.equal(result.success, false);
+});
+
+test('VISIBLE without imageBase64, or with a data: URI, is rejected; INVISIBLE does not need it', () => {
+  const visible = {
+    'files[]': [pdf()],
+    userId: 'u1',
+    tampilan: 'VISIBLE',
+    page: '1',
+    originX: '0',
+    originY: '0',
+    width: '150',
+    height: '50',
+    location: 'Jakarta',
+  };
+  assert.equal(CreateEsealSchema.safeParse(visible).success, false);
+  assert.equal(
+    CreateEsealSchema.safeParse({ ...visible, imageBase64: '' }).success,
+    false,
+  );
+  assert.equal(
+    CreateEsealSchema.safeParse({
+      ...visible,
+      imageBase64: 'data:image/png;base64,aGVsbG8=',
+    }).success,
+    false,
+  );
+  assert.equal(
+    CreateEsealSchema.safeParse({ ...visible, imageBase64: 'aGVsbG8=' }).success,
+    true,
+  );
+  assert.equal(
+    CreateEsealSchema.safeParse({
+      'files[]': [pdf()],
+      userId: 'u1',
+      tampilan: 'INVISIBLE',
+    }).success,
+    true,
+  );
 });
 
 test('non-PDF file is rejected', () => {

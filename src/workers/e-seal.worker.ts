@@ -33,7 +33,6 @@ const deps: SealBatchDeps = {
       onRefresh,
     }),
   sealPdf,
-  sealImageKey: process.env.BSRE_SEAL_IMAGE_KEY ?? '',
 };
 
 export const esealWorker = new Worker<EsealJobPayload>(
